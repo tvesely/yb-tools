@@ -13,7 +13,10 @@ func GetLogger(module string, debug bool) (logr.Logger, error) {
 		level = zapcore.DebugLevel
 	}
 
-	zc := zap.NewProductionConfig()
+	zc := zap.NewDevelopmentConfig()
+	if debug {
+		zc = zap.NewProductionConfig()
+	}
 
 	zc.Level = zap.NewAtomicLevelAt(level)
 

@@ -95,6 +95,7 @@ func RootInit() *cobra.Command {
 	// Top level commands
 	cmd.AddCommand(ClusterInfoCmd(ctx))
 	cmd.AddCommand(TabletInfoCmd(ctx))
+	cmd.AddCommand(SetFlagCmd(ctx))
 
 	type CommandCategory struct {
 		Name        string
