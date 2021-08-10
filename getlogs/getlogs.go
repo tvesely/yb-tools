@@ -1,9 +1,13 @@
 package main
 
 import (
-	"context"
+	"crypto/tls"
 	"fmt"
-	"github.com/jackc/pgx/v4"
+	"golang.org/x/net/publicsuffix"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 )
 
@@ -15,28 +19,73 @@ func main() {
 	// TODO: Add flags for specifying individual nodes by number and by name
 	// TODO: Add flags for controlling time window (before / after)
 	// TODO: Add flags for controlling which logs to collect (info/error/fatal)
+	// TODO: Add a flag for specifying the SSH port for the nodes
+	// TODO: Make it possible to set SSH ports on a node-by-node basis?
+	// TODO: Add a flag for specifying the Yugaware platform server hostname
 
-	Euid := os.Geteuid()
-	if Euid != 0 {
-		// fmt.Println("Effective user id: ", Euid)
+	// TODO: Log into Yugaware and retrieve the Universe list
 
-		_, _ = fmt.Fprintln(os.Stderr, "The getlogs utility must be run with root privileges.")
+	// TODO: Bail out if there's more than one Universe and no Universe has been specified on the (non-existent) CLI
+	// TODO: Present a list of Universes and allow the user to choose if there's more than one Universe and no Universe was specified on the CLI
+
+	yugawareHostname := os.Getenv("YUGAWARE_HOSTNAME")
+	if yugawareHostname == "" {
+		fmt.Println("No Yugaware hostname specified, falling back to localhost")
+		yugawareHostname = "localhost"
+	}
+
+	email := os.Getenv("YUGAWARE_USER")
+	if email == "" {
+		// TODO: Prompt for Yugaware username if not supplied
+		fmt.Println("No Yugaware username specified. Set the YUGAWARE_USER environment variable. Aborting.")
 		os.Exit(1)
 	}
 
-	// TODO: Replace hard-coded URL
-	// DbUrl := os.Getenv("DATABASE_URL")
-	DbUrl := "postgres://postgres:GwxSSDZcyUHVY8g8@localhost:5432/yugaware"
+	password := os.Getenv("YUGAWARE_PASS")
+	if password == "" {
+		// TODO: Prompt for Yugaware password if not supplied
+		fmt.Println("No Yugaware username specified. Set the YUGAWARE_PASS environment variable. Aborting.")
+		os.Exit(1)
+	}
 
-	fmt.Println("Connecting to Yugaware database to retrieve node info")
-	conn, err := pgx.Connect(context.Background(), DbUrl)
+	apiBaseUrl := "https://" + yugawareHostname + "/api"
+
+	fmt.Println("Using login", email)
+
+	// TODO: Use a flag to turn cert verification on or off
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	client := &http.Client{Transport: customTransport, Jar: jar}
+
+	// TODO: Refactor login into a func
+	_, _ = fmt.Fprintln(os.Stderr, "Logging into Yugaware server")
+	// TODO: Break down URLs further since we know hostname + /api/ will always be the same
+	loginUrl := apiBaseUrl + "/login"
+	response, err := client.PostForm(loginUrl, url.Values{"email": {email}, "password": {password}})
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Yugaware login failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
-	fmt.Println("Connected to Yugaware database successfully")
-	// fmt.Println("Connection info:", conn)
+	body, err := io.ReadAll(response.Body)
+	_, _ = fmt.Fprintf(os.Stderr, "Response: %s\n", body)
 
-	// TODO: Retrieve universe JSON from postgres
+	// TODO: Retrieve this from the response body instead
+	var customerUUID string
+	for _, cookie := range response.Cookies() {
+		// fmt.Fprintf(os.Stderr, "Found cookie: %v\n", cookie)
+		if cookie.Name == "customerId" {
+			customerUUID = cookie.Value
+		}
+	}
+	response.Body.Close()
+
+	// TODO: Refactor universe list retrieval into a func
+	UniverseUri := apiBaseUrl + "/customers/" + customerUUID + "/universes"
+	_, _ = fmt.Fprintf(os.Stderr, "Retrieving Universe list from %v\n", UniverseUri)
+	response, err = client.Get(UniverseUri)
+
+	defer response.Body.Close()
+	body, err = io.ReadAll(response.Body)
+	_, _ = fmt.Fprintf(os.Stderr, "Response: %s\n", body)
 }
