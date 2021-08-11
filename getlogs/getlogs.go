@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/net/publicsuffix"
 	"io"
@@ -10,6 +11,12 @@ import (
 	"net/url"
 	"os"
 )
+
+type YugawareAuth struct {
+	AuthToken    string `json:"authToken"`
+	CustomerUUID string `json:"customerUUID"`
+	UserUUID     string `json:"userUUID"`
+}
 
 func main() {
 	// TODO: Command line flags
@@ -68,24 +75,21 @@ func main() {
 		os.Exit(1)
 	}
 	body, err := io.ReadAll(response.Body)
-	_, _ = fmt.Fprintf(os.Stderr, "Response: %s\n", body)
+	var ywa YugawareAuth
 
-	// TODO: Retrieve this from the response body instead
-	var customerUUID string
-	for _, cookie := range response.Cookies() {
-		// fmt.Fprintf(os.Stderr, "Found cookie: %v\n", cookie)
-		if cookie.Name == "customerId" {
-			customerUUID = cookie.Value
-		}
+	err = json.Unmarshal(body, &ywa)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to parse authentication response: %v\n", err)
+		os.Exit(1)
 	}
 	response.Body.Close()
 
 	// TODO: Refactor universe list retrieval into a func
-	UniverseUri := apiBaseUrl + "/customers/" + customerUUID + "/universes"
+	UniverseUri := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/universes"
 	_, _ = fmt.Fprintf(os.Stderr, "Retrieving Universe list from %v\n", UniverseUri)
 	response, err = client.Get(UniverseUri)
 
 	defer response.Body.Close()
 	body, err = io.ReadAll(response.Body)
-	_, _ = fmt.Fprintf(os.Stderr, "Response: %s\n", body)
+	//_, _ = fmt.Fprintf(os.Stderr, "Response: %s\n", body)
 }
