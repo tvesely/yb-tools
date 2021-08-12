@@ -5,9 +5,6 @@ import (
 )
 
 func main() {
-
-	// TODO: Command line flags
-	// TODO: Add debug flag
 	// TODO: Add flags for specifying universe name or UUID
 	// TODO: Add flags to control node list source(s) (platform postgres, YB masters, or manual)
 	// TODO: Add flags for specifying individual nodes by number or name
@@ -16,7 +13,6 @@ func main() {
 	// TODO: Add a flag for specifying the SSH port for the nodes
 	// TODO: Add flags for specifying SSH keys
 	// TODO: Make it possible to set SSH ports on a node-by-node basis?
-	// TODO: Add a flag for specifying the Yugaware platform server hostname
 	// TODO: Add flag to list universes and node counts?
 
 	cmd.Execute()

@@ -271,7 +271,6 @@ func oldMain() {
 	err = json.Unmarshal(body, &universes)
 	// TODO: Error handling
 
-	// TODO: Make this a debug statement
 	dbg(fmt.Sprintf("Universes: %+v", universes))
 
 	// TODO: Bail out if there's more than one Universe and no Universe has been specified on the (non-existent) CLI
@@ -314,7 +313,7 @@ func oldMain() {
 		IpAddress := node.CloudInfo.PrivateIp
 
 		// TODO: Check if we can read the private key file(s) before attempting to use it / them
-		// TODO: Factor out binary names
+		// TODO: Use Golang's SSH library instead of trying to shell out to ssh
 		ConnectString := "/usr/bin/sudo /usr/bin/ssh -i " + accessKeys[0].KeyInfo.PrivateKey + " -ostricthostkeychecking=no" + " -p " + strconv.Itoa(SshPort) + " " + SshUser + "@" + IpAddress
 		fmt.Fprintf(os.Stderr, "Connect string: %s\n", ConnectString)
 	}
