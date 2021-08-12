@@ -1,8 +1,8 @@
-module github.com/yugabyte/yb-tools/getlogs
+module github.com/yugabyte/yb-tools/yb-getlogs
 
 go 1.16
 
 require (
-	golang.org/dl v0.0.0-20210805175753-70f86bf65abd // indirect
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
+	github.com/spf13/cobra v1.2.1
+	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 )

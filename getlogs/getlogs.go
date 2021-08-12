@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/yugabyte/yb-tools/yb-getlogs/cmd"
 	"golang.org/x/net/publicsuffix"
 	"io"
 	"net/http"
@@ -76,9 +77,12 @@ func main() {
 	// TODO: Add flags for controlling time window (before / after)
 	// TODO: Add flags for controlling which logs to collect (info/error/fatal)
 	// TODO: Add a flag for specifying the SSH port for the nodes
+	// TODO: Add flags for specifying SSH keys
 	// TODO: Make it possible to set SSH ports on a node-by-node basis?
 	// TODO: Add a flag for specifying the Yugaware platform server hostname
 	// TODO: Add flag to list universes and node counts?
+
+	cmd.Execute()
 
 	yugawareHostname := os.Getenv("YUGAWARE_HOSTNAME")
 	if yugawareHostname == "" {
