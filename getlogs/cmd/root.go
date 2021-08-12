@@ -27,6 +27,7 @@ var (
 	yugawarePassword string
 
 	disableCertCheck bool
+	httpTimeout      time.Duration
 
 	rootCmd = &cobra.Command{
 		Use:     "yb-getlogs",
@@ -108,6 +109,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&yugawarePassword, "password", "P", "", "Yugaware password")
 
 	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to Yugaware platform")
+	// TODO: Validation (must be a positive integer
+	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
 }
 
 func getlogs() {
@@ -231,9 +234,7 @@ func oldMain() {
 		transport = http.DefaultTransport.(*http.Transport).Clone()
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	// TODO: Make timeout configurable
-	timeout := time.Second * 30
-	client = &http.Client{Jar: jar, Timeout: timeout, Transport: transport}
+	client = &http.Client{Jar: jar, Timeout: httpTimeout, Transport: transport}
 
 	// TODO: Refactor login into a func
 	_, _ = fmt.Fprintln(os.Stderr, "Logging into Yugaware server")
