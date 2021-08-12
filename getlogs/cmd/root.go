@@ -8,7 +8,7 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:     "getlogs",
+		Use:     "yb-getlogs",
 		Short:   "A utility for gathering YugabyteDB logs across a Universe",
 		Version: "0.0.1",
 	}
