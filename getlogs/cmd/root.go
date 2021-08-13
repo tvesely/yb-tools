@@ -4,7 +4,10 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/bramvdbogaerde/go-scp"
 	"github.com/spf13/cobra"
+	"github.com/yugabyte/yb-tools/yb-getlogs/entity/yugaware"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/publicsuffix"
 	"io"
@@ -14,6 +17,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -29,6 +33,15 @@ var (
 	disableCertCheck bool
 	httpTimeout      time.Duration
 
+	httpClient *http.Client
+
+	apiBaseUrl string
+	ywa        yugaware.YugawareAuth
+
+	universeId      string
+	universes       []yugaware.Universe
+	currentUniverse yugaware.Universe
+
 	rootCmd = &cobra.Command{
 		Use:     "yb-getlogs",
 		Short:   "A utility for gathering YugabyteDB logs across a Universe",
@@ -38,58 +51,6 @@ var (
 		},
 	}
 )
-
-type YugawareAuth struct {
-	AuthToken    string `json:"authToken"`
-	CustomerUUID string `json:"customerUUID"`
-	UserUUID     string `json:"userUUID"`
-}
-
-type NodeDetails struct {
-	NodeIdx   int    `json:"nodeIdx"`
-	NodeName  string `json:"nodeName"`
-	CloudInfo struct {
-		PrivateIp string `json:"private_ip"`
-		PublicIp  string `json:"public_ip"`
-	} `json:"cloudInfo"`
-	IsMaster  bool `json:"isMaster"`
-	Master    bool `json:"master"`
-	IsTserver bool `json:"isTserver"`
-	Tserver   bool `json:"tserver"`
-}
-
-type Cluster struct {
-	Uuid       string `json:"uui"`
-	UserIntent struct {
-		Provider string `json:"provider"`
-	} `json:"userIntent"`
-}
-
-type Universe struct {
-	UniverseUUID string `json:"universeUUID"`
-	Name         string `json:"name"`
-	Resources    struct {
-		NumNodes int `json:"numNodes"`
-	} `json:"resources"`
-	UniverseDetails struct {
-		NodeDetailsSet []NodeDetails `json:"nodeDetailsSet"`
-		Clusters       []Cluster     `json:"clusters"`
-	} `json:"universeDetails"`
-}
-
-type AccessKey struct {
-	//IdKey struct {
-	//	KeyCode string `json:"keyCode"`
-	//	ProviderUUID string `json:"providerUUID"`
-	//} `json:"idKey"`
-	KeyInfo struct {
-		PublicKey              string `json:"publicKey"`
-		PrivateKey             string `json:"privateKey"`
-		SshUser                string `json:"sshUser"`
-		SshPort                int    `json:"sshPort"`
-		PasswordlessSudoAccess bool   `json:"passwordlessSudoAccess"`
-	} `json:"keyInfo"`
-}
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
@@ -110,6 +71,19 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to the Yugaware platform server")
 	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware platform server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
+
+	rootCmd.PersistentFlags().StringVar(&universeId, "universe", "", "Specify the name or UUID of a Universe from which to collect the logs.")
+
+	// TODO: Implement an option to install sos?
+	// As the centos user: /usr/bin/sudo /usr/bin/yum install sos -y
+	/*
+	[centos@yb-dev-ianderson-gcp-n1 ~]$ sudo sosreport --batch -q
+
+	sosreport (version 3.9)
+
+	Your sosreport has been generated and saved in:
+	  /var/tmp/sosreport-yb-dev-ianderson-gcp-n1-2021-08-12-rstsumo.tar.xz
+	*/
 }
 
 func getlogs() {
@@ -118,6 +92,9 @@ func getlogs() {
 	validateHostname()
 	validateUsername()
 	validatePassword()
+	configHttpClient()
+	yugawareLogin()
+	universes = getUniverseList()
 	oldMain()
 
 	dbg("Leave")
@@ -214,14 +191,8 @@ func validatePassword() {
 	dbg("Leave")
 }
 
-func oldMain() {
+func configHttpClient() {
 	dbg("Enter")
-	// TODO: Use Swagger
-	apiBaseUrl := "https://" + yugawareHostname + "/api"
-
-	fmt.Println("Using login", yugawareUsername)
-
-	var client *http.Client
 
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
@@ -233,45 +204,78 @@ func oldMain() {
 		transport = http.DefaultTransport.(*http.Transport).Clone()
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	client = &http.Client{Jar: jar, Timeout: httpTimeout, Transport: transport}
+	httpClient = &http.Client{Jar: jar, Timeout: httpTimeout, Transport: transport}
 
-	// TODO: Refactor login into a func
-	_, _ = fmt.Fprintln(os.Stderr, "Logging into Yugaware server")
+	apiBaseUrl = "https://" + yugawareHostname + "/api"
+
+	dbg("Leave")
+}
+
+func yugawareLogin() {
+	dbg("Enter")
+
+	// TODO: Factor this API wrapper out into a separate module
+	fmt.Println("Logging into Yugaware server")
+
 	loginUrl := apiBaseUrl + "/login"
-	response, err := client.PostForm(loginUrl, url.Values{"email": {yugawareUsername}, "password": {yugawarePassword}})
+	response, err := httpClient.PostForm(loginUrl, url.Values{"email": {yugawareUsername}, "password": {yugawarePassword}})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Yugaware login failed: %v\n", err)
 		os.Exit(1)
 	}
+	defer response.Body.Close()
+
 	body, err := io.ReadAll(response.Body)
-	// TODO: Error handling
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse login response body: %v\n", err)
+	}
 	dbg(fmt.Sprintf("Raw login response: %s", body))
-	var ywa YugawareAuth
 
 	err = json.Unmarshal(body, &ywa)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to parse authentication response: %v\n", err)
 		os.Exit(1)
 	}
-	response.Body.Close()
 
-	// TODO: Refactor universe list retrieval into a func
+	dbg("Leave")
+}
+
+func getUniverseList() []yugaware.Universe {
+	dbg("Enter")
+
 	UniverseUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/universes"
+
 	fmt.Println("Retrieving Universe list")
 	dbg(fmt.Sprintf("Retrieving Universe list from %v", UniverseUrl))
-	response, err = client.Get(UniverseUrl)
-	// TODO: Error handling
 
-	body, err = io.ReadAll(response.Body)
-	// TODO: Error handling
-	//fmt.Fprintf(os.Stderr, "Response: %s\n", body)
-	response.Body.Close()
+	response, err := httpClient.Get(UniverseUrl)
+	if err != nil {
+		fmt.Printf("Failed to retrieve Universe list: %v", err)
+	}
+	defer response.Body.Close()
 
-	var universes []Universe
-	err = json.Unmarshal(body, &universes)
-	// TODO: Error handling
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Printf("Failed to read Universe list: %v", err)
+	}
+	dbg(fmt.Sprintf("Raw universe JSON: %s", body))
 
-	dbg(fmt.Sprintf("Universes: %+v", universes))
+	var universeList []yugaware.Universe
+
+	err = json.Unmarshal(body, &universeList)
+	if err != nil {
+		fmt.Printf("Failed to parse Universe list: %v", err)
+	}
+
+	dbg(fmt.Sprintf("Universes: %+v", universeList))
+
+	dbg("Leave")
+	return universeList
+}
+
+func oldMain() {
+	dbg("Enter")
+	// TODO: Use Swagger
 
 	// TODO: Bail out if there's more than one Universe and no Universe has been specified on the (non-existent) CLI
 	//if len(universes) > 1 {
@@ -281,24 +285,27 @@ func oldMain() {
 	//}
 
 	fmt.Println("Found", len(universes), "Universes. Currently this utility retrieves logs from the first Universe in the list.")
-	currentUniverse := universes[0]
+	currentUniverse = universes[0]
 	fmt.Println("Retrieving logs from Universe '"+currentUniverse.Name+"' with UUID", currentUniverse.UniverseUUID)
 
 	// Retrieve access key info for each provider
 	ProviderUUID := currentUniverse.UniverseDetails.Clusters[0].UserIntent.Provider
 	KeyUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/providers/" + ProviderUUID + "/access_keys"
-	dbg(fmt.Sprintf("Retrieving access key information from %v\n", KeyUrl))
-	response, err = client.Get(KeyUrl)
+	dbg(fmt.Sprintf("Retrieving access key information from %v", KeyUrl))
+	response, err := httpClient.Get(KeyUrl)
+	if err != nil {
+		fmt.Printf("Failed to retrieve access key information: %v", err)
+	}
 
-	body, err = io.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	response.Body.Close()
 
 	//fmt.Fprintf(os.Stderr, "Access Key Info: %s\n", body)
 
-	var accessKeys []AccessKey
+	var accessKeys []yugaware.AccessKey
 	err = json.Unmarshal(body, &accessKeys)
 
-	dbg(fmt.Sprintf("Parsed access key information: %+v\n", accessKeys))
+	dbg(fmt.Sprintf("Parsed access key information: %+v", accessKeys))
 
 	SshUser := accessKeys[0].KeyInfo.SshUser
 	if SshUser == "" {
@@ -309,13 +316,109 @@ func oldMain() {
 		SshPort = 22
 	}
 
-	for _, node := range universes[0].UniverseDetails.NodeDetailsSet {
+	for i, node := range universes[0].UniverseDetails.NodeDetailsSet {
 		IpAddress := node.CloudInfo.PrivateIp
 
 		// TODO: Check if we can read the private key file(s) before attempting to use it / them
 		// TODO: Use Golang's SSH library instead of trying to shell out to ssh
 		ConnectString := "/usr/bin/sudo /usr/bin/ssh -i " + accessKeys[0].KeyInfo.PrivateKey + " -ostricthostkeychecking=no" + " -p " + strconv.Itoa(SshPort) + " " + SshUser + "@" + IpAddress
 		fmt.Fprintf(os.Stderr, "Connect string: %s\n", ConnectString)
+		privateKey, err := readPrivateKey(accessKeys[0].KeyInfo.PrivateKey)
+		if err != nil {
+			fmt.Printf("Failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
+			os.Exit(1)
+		}
+
+		conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
+			Config:          ssh.Config{},
+			User:            SshUser,
+			Auth:            []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			BannerCallback:  nil,
+			ClientVersion:   "",
+			// TODO: Do not ignore the host key
+			HostKeyAlgorithms: nil,
+			// TODO: Make SSH timeout configurable
+			Timeout: time.Second * 30,
+		})
+
+		if err != nil {
+			fmt.Printf("Failed to dial: %s", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Connected!")
+		session, err := conn.NewSession()
+		if err != nil {
+			fmt.Println("Failed to create session:", err)
+			os.Exit(1)
+		}
+
+		buff, err := session.CombinedOutput("/bin/date")
+		if err != nil {
+			fmt.Println("Failed to run 'date' command:", err)
+			os.Exit(1)
+		}
+
+		// TODO: Parallelize with goroutines
+		// TODO: Use waitgroup to wait for all go routines to finish
+
+		wg := &sync.WaitGroup{}
+
+		// Do this for each goroutine directly before calling the goroutine
+		wg.Add(1)
+
+		go func(wg *sync.WaitGroup) {
+			// At end of goroutine
+			wg.Done()
+		}(wg)
+
+		// After all goroutines have been called:
+		// Waits for waitgroup to be done (Add => increments, Done => decrements)
+		wg.Wait()
+
+		fmt.Printf("Output of date: %s", buff)
+
+		// TODO: Ensure license information for go-scp is included before shipping
+		client, err := scp.NewClientBySSH(conn)
+		if err != nil {
+			fmt.Println("Error creating new SSH session from existing connection", err)
+			os.Exit(1)
+		}
+
+		targetFile, err := os.Create("./testfile" + strconv.Itoa(i))
+		if err != nil {
+			fmt.Println("Error creating local file for writing", err)
+			os.Exit(1)
+		}
+
+		err = client.CopyFromRemote(targetFile, ".bashrc")
+		if err != nil {
+			fmt.Println("Error copying from remote file", err)
+			os.Exit(1)
+		}
+
+		err = targetFile.Close()
+		if err != nil {
+			fmt.Println("Error closing local file", err)
+			os.Exit(1)
+		}
+
+		// TODO: Refactor so we can use defer
+		err = conn.Close()
+		if err != nil {
+			fmt.Println("Failed to close connection:", err)
+			os.Exit(1)
+		}
+
 	}
 	dbg("Leave")
+}
+
+func readPrivateKey(keyFile string) (ssh.Signer, error) {
+	keyBytes, err := os.ReadFile(keyFile)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.ParsePrivateKey(keyBytes)
 }
