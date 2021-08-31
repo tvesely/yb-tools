@@ -51,3 +51,8 @@ type AccessKey struct {
 		PasswordlessSudoAccess bool   `json:"passwordlessSudoAccess"`
 	} `json:"keyInfo"`
 }
+
+type LogFile struct {
+	File     string
+	Bytesize string
+}

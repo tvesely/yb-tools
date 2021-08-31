@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -15,8 +17,10 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,6 +45,10 @@ var (
 	universeId      string
 	universes       []yugaware.Universe
 	currentUniverse yugaware.Universe
+
+	mountPaths []string
+
+	sshParallelism int
 
 	rootCmd = &cobra.Command{
 		Use:     "yb-getlogs",
@@ -72,22 +80,29 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to the Yugaware platform server")
 	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware platform server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
 
-	rootCmd.PersistentFlags().StringVar(&universeId, "universe", "", "Specify the name or UUID of a Universe from which to collect the logs.")
+	rootCmd.PersistentFlags().StringVar(&universeId, "universe", "", "Specify the name or UUID of a Universe from which to collect the logs")
+
+	rootCmd.PersistentFlags().StringSliceVar(&mountPaths, "mountpaths", []string{"/mnt/d0"}, "Specify a comma separated list of the filesystem paths where Yugabyte DB data resides")
+
+	rootCmd.PersistentFlags().IntVar(&sshParallelism, "parallel", 4, "Specify the number of Universe nodes to connect to in parallel")
 
 	// TODO: Implement an option to install sos?
 	// As the centos user: /usr/bin/sudo /usr/bin/yum install sos -y
 	/*
-	[centos@yb-dev-ianderson-gcp-n1 ~]$ sudo sosreport --batch -q
+		[centos@yb-dev-ianderson-gcp-n1 ~]$ sudo sosreport --batch -q
 
-	sosreport (version 3.9)
+		sosreport (version 3.9)
 
-	Your sosreport has been generated and saved in:
-	  /var/tmp/sosreport-yb-dev-ianderson-gcp-n1-2021-08-12-rstsumo.tar.xz
+		Your sosreport has been generated and saved in:
+		  /var/tmp/sosreport-yb-dev-ianderson-gcp-n1-2021-08-12-rstsumo.tar.xz
 	*/
 }
 
 func getlogs() {
 	dbg("Enter")
+
+	// TODO: Mask passwords in this output
+	dbg(fmt.Sprintf("Called using the following command line: %v", os.Args))
 
 	validateHostname()
 	validateUsername()
@@ -288,7 +303,7 @@ func oldMain() {
 	currentUniverse = universes[0]
 	fmt.Println("Retrieving logs from Universe '"+currentUniverse.Name+"' with UUID", currentUniverse.UniverseUUID)
 
-	// Retrieve access key info for each provider
+	// Retrieve access key info for the provider
 	ProviderUUID := currentUniverse.UniverseDetails.Clusters[0].UserIntent.Provider
 	KeyUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/providers/" + ProviderUUID + "/access_keys"
 	dbg(fmt.Sprintf("Retrieving access key information from %v", KeyUrl))
@@ -307,6 +322,7 @@ func oldMain() {
 
 	dbg(fmt.Sprintf("Parsed access key information: %+v", accessKeys))
 
+	// TODO: Use https://github.com/tylarb/clusterExec?
 	SshUser := accessKeys[0].KeyInfo.SshUser
 	if SshUser == "" {
 		SshUser = "yugabyte"
@@ -316,49 +332,36 @@ func oldMain() {
 		SshPort = 22
 	}
 
+	privateKey, err := readPrivateKey(accessKeys[0].KeyInfo.PrivateKey)
+	if err != nil {
+		fmt.Printf("Failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
+		os.Exit(1)
+	}
+
 	for i, node := range universes[0].UniverseDetails.NodeDetailsSet {
+		getNodeLogs(privateKey, SshPort, SshUser, node)
+		// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 		IpAddress := node.CloudInfo.PrivateIp
 
-		// TODO: Check if we can read the private key file(s) before attempting to use it / them
-		// TODO: Use Golang's SSH library instead of trying to shell out to ssh
-		ConnectString := "/usr/bin/sudo /usr/bin/ssh -i " + accessKeys[0].KeyInfo.PrivateKey + " -ostricthostkeychecking=no" + " -p " + strconv.Itoa(SshPort) + " " + SshUser + "@" + IpAddress
-		fmt.Fprintf(os.Stderr, "Connect string: %s\n", ConnectString)
-		privateKey, err := readPrivateKey(accessKeys[0].KeyInfo.PrivateKey)
-		if err != nil {
-			fmt.Printf("Failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
-			os.Exit(1)
-		}
-
 		conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
-			Config:          ssh.Config{},
-			User:            SshUser,
-			Auth:            []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			BannerCallback:  nil,
-			ClientVersion:   "",
+			Config: ssh.Config{},
+			User:   SshUser,
+			Auth:   []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
 			// TODO: Do not ignore the host key
+			HostKeyCallback:   ssh.InsecureIgnoreHostKey(),
+			BannerCallback:    nil,
+			ClientVersion:     "",
 			HostKeyAlgorithms: nil,
 			// TODO: Make SSH timeout configurable
 			Timeout: time.Second * 30,
 		})
-
 		if err != nil {
 			fmt.Printf("Failed to dial: %s", err)
 			os.Exit(1)
 		}
-
 		fmt.Println("Connected!")
-		session, err := conn.NewSession()
-		if err != nil {
-			fmt.Println("Failed to create session:", err)
-			os.Exit(1)
-		}
 
-		buff, err := session.CombinedOutput("/bin/date")
-		if err != nil {
-			fmt.Println("Failed to run 'date' command:", err)
-			os.Exit(1)
-		}
+		_ = testSsh(conn)
 
 		// TODO: Parallelize with goroutines
 		// TODO: Use waitgroup to wait for all go routines to finish
@@ -376,8 +379,6 @@ func oldMain() {
 		// After all goroutines have been called:
 		// Waits for waitgroup to be done (Add => increments, Done => decrements)
 		wg.Wait()
-
-		fmt.Printf("Output of date: %s", buff)
 
 		// TODO: Ensure license information for go-scp is included before shipping
 		client, err := scp.NewClientBySSH(conn)
@@ -416,9 +417,160 @@ func oldMain() {
 }
 
 func readPrivateKey(keyFile string) (ssh.Signer, error) {
+	dbg("Enter")
 	keyBytes, err := os.ReadFile(keyFile)
 	if err != nil {
 		return nil, err
 	}
+	dbg("Leave")
 	return ssh.ParsePrivateKey(keyBytes)
+}
+
+func getNodeLogs(PrivateKey ssh.Signer, SshPort int, SshUser string, node yugaware.NodeDetails) {
+	IpAddress := node.CloudInfo.PrivateIp
+
+	conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
+		Config:          ssh.Config{},
+		User:            SshUser,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(PrivateKey)},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		BannerCallback:  nil,
+		ClientVersion:   "",
+		// TODO: Do not ignore the host key
+		HostKeyAlgorithms: nil,
+		// TODO: Make SSH timeout configurable
+		Timeout: time.Second * 30,
+	})
+	if err != nil {
+		fmt.Printf("Failed to dial: %s", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+	fmt.Println("Connected!")
+
+	_ = testSsh(conn)
+	_ = getFileList(conn)
+	// TODO: Write file list to temp file on node
+	// TODO: Confirm free disk space on nodes before tarring
+	// TODO: Tar up files listed in temp file
+
+	// TODO: Confirm free disk space on Yugaware server before copying
+	// TODO: Copy tarball to platform node
+}
+
+func testSsh(conn *ssh.Client) error {
+	dbg("Enter")
+	// We need a new session for each SSH command
+	session, err := conn.NewSession()
+	if err != nil {
+		fmt.Println("Failed to create session:", err)
+		os.Exit(1)
+	}
+	defer session.Close()
+
+	buff, err := session.CombinedOutput("/bin/date")
+	if err == nil {
+		dbg(fmt.Sprintf("Output of date: %s", buff))
+	}
+	dbg("Leave")
+	return err
+}
+
+func getFileList(conn *ssh.Client) error {
+	session, err := conn.NewSession()
+	if err != nil {
+		fmt.Println("Failed to create session:", err)
+		return err
+	}
+	defer session.Close()
+
+	searchPaths := make([]string, len(mountPaths))
+	copy(searchPaths, mountPaths)
+	for n := range searchPaths {
+		searchPaths[n] += "/yb-data"
+	}
+	searchPaths = append(searchPaths, "/var/log")
+
+	searchPathString := strings.Join(searchPaths, " ")
+
+	// 🤢
+	// Use Output here instead of CombinedOutput because we want to discard STDERR
+	buff, err := session.Output(fmt.Sprintf("/usr/bin/find %s -name '*' %s", searchPathString, " -printf \"%p\\0%s\\n\""))
+	if err != nil {
+		fmt.Printf("Failed to get directory listing for mountpoints %s: %v", searchPathString, err)
+	}
+	dbg(fmt.Sprintf("Directory listing of mountpoints %s:\n%s", searchPathString, buff))
+
+	fileList := buildFileList(buff)
+	dbg(fmt.Sprintf("Initial file List: %v", fileList))
+	fileList = filterFileList(fileList)
+	dbg(fmt.Sprintf("Filtered file List: %v", fileList))
+	// TODO: Filter file list
+	// TODO: Return file list
+	return err
+}
+
+func buildFileList(buff []byte) []yugaware.LogFile {
+	var fileList []yugaware.LogFile
+
+	// Parse file list into name and size
+	// We can't create a scanner from a raw byte slice, so we have to wrap it in a byte[] reader first
+	scanner := bufio.NewScanner(bytes.NewReader(buff))
+	for scanner.Scan() {
+		s := strings.Split(scanner.Text(), "\x00")
+		fileList = append(fileList, yugaware.LogFile{
+			File:     s[0],
+			Bytesize: s[1],
+		})
+		dbg(fmt.Sprintln("File:", s[0], "Size:", s[1]))
+	}
+
+	return fileList
+}
+
+func filterFileList(fileList []yugaware.LogFile) []yugaware.LogFile {
+	var filteredList []yugaware.LogFile
+
+	staticMatchPatterns := getStaticMatchPatterns()
+
+	for _, file := range fileList {
+		for _, pattern := range staticMatchPatterns {
+			if pattern.MatchString(file.File) {
+				dbg(fmt.Sprintf("File %s matched pattern %s\n", file.File, pattern.String()))
+				filteredList = append(filteredList, file)
+			} else {
+				dbg(fmt.Sprintf("File %s did not match pattern %s\n", file.File, pattern.String()))
+			}
+		}
+		// TODO: Add matching and date filtering for date filtered files
+	}
+
+	return filteredList
+}
+
+func getStaticMatchPatterns() []*regexp.Regexp {
+	var matchPatterns []*regexp.Regexp
+
+	var matchStrings []string
+
+	matchStrings = append(matchStrings, "^/var/log/messages")
+	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/(?:consensus|tablet)-meta")
+	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/instance$")
+	// No backreferences?! Denied...
+	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/logs/yb-(?:master|tserver)\\.pid$")
+	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/logs/yb-(?:master|tserver).*FATAL")
+
+	for _, matchString := range matchStrings {
+		matchPattern, err := regexp.Compile(matchString)
+		if err != nil {
+			// TODO: Error handling
+		}
+		matchPatterns = append(matchPatterns, matchPattern)
+	}
+
+	return matchPatterns
+}
+
+func matchPatternByDate(pattern string) {
+
 }
