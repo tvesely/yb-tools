@@ -1,0 +1,48 @@
+/*
+Copyright © 2021 Yugabyte Support
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+syntax = "proto2";
+
+package yugatool.healthcheck;
+
+option java_package = "org.yugatool.healthcheck";
+
+import "yb/master/master.proto";
+import "yb/consensus/consensus.proto";
+//import "yb/common/common.proto";
+import "yb/util/opid.proto";
+
+message TabletReportPB {
+  required string tablet = 1;
+  required yb.master.TabletLocationsPB tablet_locations = 2;
+  message replica_state {
+    required bytes uuid = 1;
+    required yb.consensus.GetConsensusStateResponsePB consensus_state = 2;
+    optional yb.OpIdPB opid = 3;
+  }
+  repeated replica_state replica_states = 3; // TODO: should reimplemented to be a list of app status errors
+  message errorlist {
+    message missing_leader_error {
+      required string best_leader_uuid = 1;
+    }
+    optional missing_leader_error missing_leader = 1;
+  }
+  optional errorlist errors = 6;
+}
+
+message TableReportPB {
+  required yb.master.ListTablesResponsePB.TableInfo table_info = 1;
+  repeated TabletReportPB tablets = 2;
+}
