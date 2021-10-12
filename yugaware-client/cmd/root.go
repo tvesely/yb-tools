@@ -123,9 +123,10 @@ func RootInit() *cobra.Command {
 				// TODO: Make these names consistent
 				universe.CreateUniverseCmd(ctx),
 				universe.DeleteUniverseCmd(ctx),
+				universe.GetCmd(ctx),
 				universe.HealthCheckCmd(ctx),
 				universe.ListCmd(ctx),
-				universe.GetCmd(ctx),
+				universe.ResetUniverseVersionCmd(ctx),
 			},
 		},
 	}
