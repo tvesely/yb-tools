@@ -92,6 +92,7 @@ func RootInit() *cobra.Command {
 	// Top level commands
 	cmd.AddCommand(RegisterCmd(ctx))
 	cmd.AddCommand(LoginCmd(ctx))
+	cmd.AddCommand(MetricsCmd(ctx))
 
 	type CommandCategory struct {
 		Name        string

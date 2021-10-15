@@ -92,6 +92,13 @@ func (ctx *YWClientContext) WithOptions(options CommandOptions) *YWClientContext
 	return ctx
 }
 
+func (ctx *YWClientContext) WithCancel() (*YWClientContext, context.CancelFunc) {
+	var cancel context.CancelFunc
+	ctx.Context, cancel = context.WithCancel(ctx)
+
+	return ctx, cancel
+}
+
 func (ctx *YWClientContext) Setup() error {
 	if ctx.Cmd == nil ||
 		ctx.GlobalOptions == nil {

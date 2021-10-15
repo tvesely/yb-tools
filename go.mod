@@ -24,6 +24,7 @@ require (
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mum4k/termdash v0.16.0 // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/pkg/errors v0.9.1
