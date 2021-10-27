@@ -109,6 +109,7 @@ func RootInit(fs vfs.Filesystem) *cobra.Command {
 			Name:        "backup",
 			Description: "Interact with Yugabyte backups",
 			Commands: []*cobra.Command{
+				backup.CopyKeyspaceCmd(ctx),
 				backup.CreateCmd(ctx),
 				backup.ListCmd(ctx),
 				backup.RestoreCmd(ctx),
