@@ -44,19 +44,19 @@ func NewCreateMultiTableBackupOK() *CreateMultiTableBackupOK {
 If requested schedule backup.
 */
 type CreateMultiTableBackupOK struct {
-	Payload *models.Schedule
+	Payload *models.YBPTask
 }
 
 func (o *CreateMultiTableBackupOK) Error() string {
 	return fmt.Sprintf("[PUT /api/v1/customers/{cUUID}/universes/{uniUUID}/multi_table_backup][%d] createMultiTableBackupOK  %+v", 200, o.Payload)
 }
-func (o *CreateMultiTableBackupOK) GetPayload() *models.Schedule {
+func (o *CreateMultiTableBackupOK) GetPayload() *models.YBPTask {
 	return o.Payload
 }
 
 func (o *CreateMultiTableBackupOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
-	o.Payload = new(models.Schedule)
+	o.Payload = new(models.YBPTask)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

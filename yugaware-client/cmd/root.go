@@ -105,6 +105,7 @@ func RootInit() *cobra.Command {
 			Name:        "backup",
 			Description: "Interact with Yugabyte backups",
 			Commands: []*cobra.Command{
+				backup.CopyKeyspaceCmd(ctx),
 				backup.ListCmd(ctx),
 			},
 		},

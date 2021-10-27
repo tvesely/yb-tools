@@ -24,7 +24,7 @@ import (
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/models"
 )
 
-func WaitForTaskCompletion(ctx *YWClientContext, waitTask *models.YBPTask) error {
+func WaitForTaskCompletion(ctx *YWClientContext, waitTask *models.YBPTask) (*models.CustomerTaskData, error) {
 	params := customer_tasks.NewTasksListParams().
 		WithContext(ctx).
 		WithCUUID(ctx.Client.CustomerUUID())
@@ -34,23 +34,36 @@ func WaitForTaskCompletion(ctx *YWClientContext, waitTask *models.YBPTask) error
 		case <-time.After(1 * time.Second):
 			resp, err := ctx.Client.PlatformAPIs.CustomerTasks.TasksList(params, ctx.Client.SwaggerAuth)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			for _, task := range resp.GetPayload() {
-				if task.ID == waitTask.TaskUUID {
-					if task.Status == "Success" {
-						return nil
-					} else if task.Status != "Running" {
-						return fmt.Errorf("task failed: %s", task.Status)
-					}
-
-					ctx.Log.V(1).Info("task not complete", "task", task)
-					break
-				}
+			finished, task, err := isTaskFinished(ctx, waitTask, resp.GetPayload())
+			if err != nil {
+				return nil, err
+			}
+			if finished {
+				return task, nil
 			}
 		case <-ctx.Done():
 			ctx.Log.Info("wait cancelled")
-			return nil
+			return nil, nil
 		}
 	}
+}
+
+func isTaskFinished(ctx *YWClientContext, waitTask *models.YBPTask, taskmap map[string][]models.CustomerTaskData) (bool, *models.CustomerTaskData, error) {
+	for _, tasklist := range taskmap {
+		for _, task := range tasklist {
+			if task.ID == waitTask.TaskUUID {
+				if task.Status == "Success" {
+					return true, &task, nil
+				} else if task.Status != "Running" {
+					return false, nil, fmt.Errorf("task failed: %s", task.Status)
+				}
+
+				ctx.Log.V(1).Info("task not complete", "task", task)
+				break
+			}
+		}
+	}
+	return false, nil, nil
 }

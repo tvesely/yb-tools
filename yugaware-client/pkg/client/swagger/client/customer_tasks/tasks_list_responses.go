@@ -44,13 +44,13 @@ func NewTasksListOK() *TasksListOK {
 successful operation
 */
 type TasksListOK struct {
-	Payload []*models.CustomerTaskData
+	Payload map[string][]models.CustomerTaskData
 }
 
 func (o *TasksListOK) Error() string {
-	return fmt.Sprintf("[GET /api/v1/customers/{cUUID}/tasks_list][%d] tasksListOK  %+v", 200, o.Payload)
+	return fmt.Sprintf("[GET /api/v1/customers/{cUUID}/tasks][%d] tasksListOK  %+v", 200, o.Payload)
 }
-func (o *TasksListOK) GetPayload() []*models.CustomerTaskData {
+func (o *TasksListOK) GetPayload() map[string][]models.CustomerTaskData {
 	return o.Payload
 }
 

@@ -7681,7 +7681,7 @@
         "tags" : [ "Customer Tasks" ]
       }
     },
-    "/api/v1/customers/{cUUID}/tasks_list" : {
+    "/api/v1/customers/{cUUID}/tasks" : {
       "get" : {
         "description" : "",
         "operationId" : "tasksList",
@@ -7703,10 +7703,12 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "items" : {
-                "$ref" : "#/definitions/CustomerTaskData"
-              },
-              "type" : "array"
+              "additionalProperties" : {
+                "items" : {
+                  "$ref" : "#/definitions/CustomerTaskData"
+                },
+                "type" : "array"
+              }
             }
           }
         },
@@ -8596,7 +8598,7 @@
           "200" : {
             "description" : "If requested schedule backup.",
             "schema" : {
-              "$ref" : "#/definitions/Schedule"
+              "$ref" : "#/definitions/YBPTask"
             }
           }
         },

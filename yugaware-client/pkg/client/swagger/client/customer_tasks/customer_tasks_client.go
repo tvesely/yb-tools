@@ -171,7 +171,7 @@ func (a *Client) TasksList(params *TasksListParams, authInfo runtime.ClientAuthI
 	op := &runtime.ClientOperation{
 		ID:                 "tasksList",
 		Method:             "GET",
-		PathPattern:        "/api/v1/customers/{cUUID}/tasks_list",
+		PathPattern:        "/api/v1/customers/{cUUID}/tasks",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http", "https"},
