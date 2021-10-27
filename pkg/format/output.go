@@ -17,6 +17,27 @@ import (
 )
 
 func init() {
+	ajson.AddFunction("ignore_nulls", func(node *ajson.Node) (result *ajson.Node, err error) {
+		array, err := node.GetArray()
+		if err != nil ||
+			len(array) < 1 {
+			return node, err
+		}
+
+		var results []*ajson.Node
+		for _, element := range array {
+			if element.Type() != ajson.Null {
+				results = append(results, element)
+			}
+		}
+
+		if len(results) == 1 {
+			return results[0], err
+		}
+
+		return ajson.ArrayNode("", results), nil
+	})
+
 	ajson.AddFunction("seconds_pretty", func(node *ajson.Node) (result *ajson.Node, err error) {
 		var seconds int
 		if node.IsString() {
@@ -298,7 +319,7 @@ func (f *Output) formatPathRow(root *ajson.Node) ([]*simpletable.Cell, error) {
 		var cell *simpletable.Cell
 
 		if col.Expr != "" {
-			cell, err = f.formatEvalExpr(root, col.Expr)
+			cell, err = f.formatEvalExpr(root, col.JSONPath)
 			if err != nil {
 				return formatPathRowError(err)
 			}

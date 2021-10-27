@@ -20,9 +20,10 @@ import (
 	"os"
 	"strings"
 
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/yugabyte/yb-tools/yugaware-client/cmd/backup"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/certificate"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/provider"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/universe"
@@ -100,6 +101,13 @@ func RootInit() *cobra.Command {
 	}
 
 	categories := []CommandCategory{
+		{
+			Name:        "backup",
+			Description: "Interact with Yugabyte backups",
+			Commands: []*cobra.Command{
+				backup.ListCmd(ctx),
+			},
+		},
 		{
 			Name:        "certificate",
 			Description: "Interact with Yugabyte certificates",
