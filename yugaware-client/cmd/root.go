@@ -112,6 +112,7 @@ func RootInit() *cobra.Command {
 			Name:        "provider",
 			Description: "Interact with Yugaware providers",
 			Commands: []*cobra.Command{
+				provider.DeleteProviderRegionCmd(ctx),
 				provider.CreateCmd(ctx),
 				provider.ListCmd(ctx),
 			},

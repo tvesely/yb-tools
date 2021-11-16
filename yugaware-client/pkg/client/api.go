@@ -7,6 +7,8 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/yugabyte/yb-tools/yugaware-client/entity/yugaware"
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/client/certificate_info"
+	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/client/cloud_providers"
+	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/client/region_management"
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/client/universe_management"
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/models"
 )
@@ -148,6 +150,52 @@ func (c *YugawareClient) GetCertByIdentifier(identifier string) (*models.Certifi
 
 		if cert.UUID == strfmt.UUID(strings.ToLower(identifier)) {
 			return cert, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (c *YugawareClient) GetProviderByIdentifier(identifier string) (*models.Provider, error) {
+
+	params := cloud_providers.NewGetListOfProvidersParams().
+		WithCUUID(c.CustomerUUID())
+	providers, err := c.PlatformAPIs.CloudProviders.GetListOfProviders(params, c.SwaggerAuth)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, provider := range providers.GetPayload() {
+		if provider.Name == identifier {
+			return provider, nil
+		}
+
+		if provider.UUID == strfmt.UUID(identifier) {
+			return provider, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (c *YugawareClient) GetRegionByIdentifier(provider strfmt.UUID, identifier string) (*models.Region, error) {
+
+	params := region_management.NewGetRegionParams().
+		WithCUUID(c.CustomerUUID()).
+		WithPUUID(provider)
+
+	regions, err := c.PlatformAPIs.RegionManagement.GetRegion(params, c.SwaggerAuth)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, region := range regions.GetPayload() {
+		if region.Name == identifier {
+			return region, nil
+		}
+
+		if region.UUID == strfmt.UUID(strings.ToLower(identifier)) {
+			return region, nil
 		}
 	}
 
