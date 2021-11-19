@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/bramvdbogaerde/go-scp"
 	"github.com/spf13/cobra"
@@ -31,9 +32,11 @@ var (
 	logfile string
 
 	yugawareHostname string
+	yugawarePort     string
 	yugawareUsername string
 	yugawarePassword string
 
+	disableHttps     bool
 	disableCertCheck bool
 	httpTimeout      time.Duration
 
@@ -74,9 +77,12 @@ func init() {
 	//rootCmd.PersistentFlags().StringVar(&logfile, "logfile", "yb-getlogs.log", "Specify a logfile name. Will be created in the current working directory if no path specified.")
 
 	rootCmd.PersistentFlags().StringVarP(&yugawareHostname, "hostname", "H", "", "Hostname or IP address of the Yugaware platform server (default \"localhost\")")
+	// TODO: Allow environment variables for this flag, as with other connectivity flags
+	rootCmd.PersistentFlags().StringVarP(&yugawarePort, "port", "p", "", "Port number to use for connecting to the Yugaware platform (optional)")
 	rootCmd.PersistentFlags().StringVarP(&yugawareUsername, "username", "U", "", "Yugaware login name (email)")
 	rootCmd.PersistentFlags().StringVarP(&yugawarePassword, "password", "P", "", "Yugaware password")
 
+	rootCmd.PersistentFlags().BoolVar(&disableHttps, "http-insecure", false, "Use http instead of https when connecting to the Yugaware platform server (not recommended)")
 	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to the Yugaware platform server")
 	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware platform server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
 
@@ -110,6 +116,26 @@ func getlogs() {
 	configHttpClient()
 	yugawareLogin()
 	universes = getUniverseList()
+	// TODO: Put this selection logic into a func
+	if len(universes) == 0 {
+		fmt.Println("No universes found. Exiting.")
+		os.Exit(0)
+	} else if len(universes) == 1 {
+		currentUniverse = universes[0]
+	} else {
+		if universeId == "" {
+			// TODO: Present a list of Universes and allow the user to choose if there's more than one Universe and no Universe was specified on the CLI
+			fmt.Println("Multiple universes found and no universe identifier (name or UUID) specified. Exiting.")
+			os.Exit(1)
+		}
+		var err error
+		// TODO: Is this making a copy of the struct? That may be sub-optimal.
+		currentUniverse, err = getUniverseById(universeId)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 	oldMain()
 
 	dbg("Leave")
@@ -221,7 +247,18 @@ func configHttpClient() {
 	}
 	httpClient = &http.Client{Jar: jar, Timeout: httpTimeout, Transport: transport}
 
-	apiBaseUrl = "https://" + yugawareHostname + "/api"
+	var protocolString string
+	if disableHttps == true {
+		protocolString = "http://"
+	} else {
+		protocolString = "https://"
+	}
+
+	portString := ""
+	if yugawarePort != "" {
+		portString = ":" + yugawarePort
+	}
+	apiBaseUrl = protocolString + yugawareHostname + portString + "/api"
 
 	dbg("Leave")
 }
@@ -234,6 +271,7 @@ func yugawareLogin() {
 
 	loginUrl := apiBaseUrl + "/login"
 	response, err := httpClient.PostForm(loginUrl, url.Values{"email": {yugawareUsername}, "password": {yugawarePassword}})
+	// TODO:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Yugaware login failed: %v\n", err)
 		os.Exit(1)
@@ -245,6 +283,10 @@ func yugawareLogin() {
 		fmt.Fprintf(os.Stderr, "Failed to parse login response body: %v\n", err)
 	}
 	dbg(fmt.Sprintf("Raw login response: %s", body))
+	if response.StatusCode == 401 {
+		fmt.Fprintf(os.Stderr, "Yugaware login failed: %s\n", body)
+		os.Exit(1)
+	}
 
 	err = json.Unmarshal(body, &ywa)
 	if err != nil {
@@ -288,20 +330,25 @@ func getUniverseList() []yugaware.Universe {
 	return universeList
 }
 
+func getUniverseById(universeId string) (yugaware.Universe, error) {
+	dbg("Enter")
+
+	// This may produce unexpected results if some idiot has set a Universe name that is a valid UUID for another
+	// Universe. Don't do this.
+	for _, universe := range universes {
+		if universe.UniverseUUID == universeId || universe.Name == universeId {
+			return universe, nil
+		}
+	}
+
+	dbg("Leave")
+
+	return yugaware.Universe{}, errors.New(fmt.Sprintf("Could not find Universe with identifier '%s'", universeId))
+}
+
 func oldMain() {
 	dbg("Enter")
-	// TODO: Use Swagger
-
-	// TODO: Bail out if there's more than one Universe and no Universe has been specified on the (non-existent) CLI
-	//if len(universes) > 1 {
-	// TODO: Present a list of Universes and allow the user to choose if there's more than one Universe and no Universe was specified on the CLI
-	//	fmt.Println("Multiple universes detected. This script currently supports one universe per Yugaware server. Exiting.")
-	//	os.Exit(1)
-	//}
-
-	fmt.Println("Found", len(universes), "Universes. Currently this utility retrieves logs from the first Universe in the list.")
-	currentUniverse = universes[0]
-	fmt.Println("Retrieving logs from Universe '"+currentUniverse.Name+"' with UUID", currentUniverse.UniverseUUID)
+	// TODO: Use Swagger?
 
 	// Retrieve access key info for the provider
 	ProviderUUID := currentUniverse.UniverseDetails.Clusters[0].UserIntent.Provider
@@ -310,6 +357,7 @@ func oldMain() {
 	response, err := httpClient.Get(KeyUrl)
 	if err != nil {
 		fmt.Printf("Failed to retrieve access key information: %v", err)
+		os.Exit(1)
 	}
 
 	body, err := io.ReadAll(response.Body)
@@ -321,6 +369,10 @@ func oldMain() {
 	err = json.Unmarshal(body, &accessKeys)
 
 	dbg(fmt.Sprintf("Parsed access key information: %+v", accessKeys))
+	if len(accessKeys) == 0 {
+		fmt.Println("Failed to retrieve access key information. No access keys found in Universe info. Is this a Kubernetes Universe?")
+		os.Exit(1)
+	}
 
 	// TODO: Use https://github.com/tylarb/clusterExec?
 	SshUser := accessKeys[0].KeyInfo.SshUser
@@ -338,7 +390,7 @@ func oldMain() {
 		os.Exit(1)
 	}
 
-	for i, node := range universes[0].UniverseDetails.NodeDetailsSet {
+	for i, node := range currentUniverse.UniverseDetails.NodeDetailsSet {
 		getNodeLogs(privateKey, SshPort, SshUser, node)
 		// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 		IpAddress := node.CloudInfo.PrivateIp
@@ -490,6 +542,14 @@ func getFileList(conn *ssh.Client) error {
 		searchPaths[n] += "/yb-data"
 	}
 	searchPaths = append(searchPaths, "/var/log")
+	//homeDir := os.Getenv("HOME")
+	// TODO: Make this dynamic again (but we don't want this to be /home/centos!)
+	homeDir := "/home/yugabyte"
+	if homeDir != "" {
+		searchPaths = append(searchPaths, homeDir)
+	} else {
+		// TODO: Warn that we won't be able to collect the server.conf flag files
+	}
 
 	searchPathString := strings.Join(searchPaths, " ")
 
@@ -531,10 +591,12 @@ func buildFileList(buff []byte) []yugaware.LogFile {
 func filterFileList(fileList []yugaware.LogFile) []yugaware.LogFile {
 	var filteredList []yugaware.LogFile
 
-	staticMatchPatterns := getStaticMatchPatterns()
+	matchPatterns := compileMatchPatterns()
 
 	for _, file := range fileList {
-		for _, pattern := range staticMatchPatterns {
+		// TODO: We can use submatch to return a date (if present), then if we hit a match, filter by date range
+		// inside the conditional.
+		for _, pattern := range matchPatterns {
 			if pattern.MatchString(file.File) {
 				dbg(fmt.Sprintf("File %s matched pattern %s\n", file.File, pattern.String()))
 				filteredList = append(filteredList, file)
@@ -548,7 +610,7 @@ func filterFileList(fileList []yugaware.LogFile) []yugaware.LogFile {
 	return filteredList
 }
 
-func getStaticMatchPatterns() []*regexp.Regexp {
+func compileMatchPatterns() []*regexp.Regexp {
 	var matchPatterns []*regexp.Regexp
 
 	var matchStrings []string
@@ -559,6 +621,7 @@ func getStaticMatchPatterns() []*regexp.Regexp {
 	// No backreferences?! Denied...
 	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/logs/yb-(?:master|tserver)\\.pid$")
 	matchStrings = append(matchStrings, "yb-data/(?:master|tserver)/logs/yb-(?:master|tserver).*FATAL")
+	matchStrings = append(matchStrings, "(?:master|tserver)/conf/server.conf")
 
 	for _, matchString := range matchStrings {
 		matchPattern, err := regexp.Compile(matchString)
@@ -571,6 +634,7 @@ func getStaticMatchPatterns() []*regexp.Regexp {
 	return matchPatterns
 }
 
-func matchPatternByDate(pattern string) {
+//func matchPatternByDate(pattern string, before, after) {
+// TODO: This func name sucks. Naming things is hard
 
 }
