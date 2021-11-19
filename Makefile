@@ -1,6 +1,6 @@
 include global.mk
 
-YBTOOLS = getlogs ycrc yugatool yugaware-client
+YBTOOLS = yb-getlogs ycrc yugatool yugaware-client
 
 all: ${YBTOOLS}
 
