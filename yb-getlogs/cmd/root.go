@@ -50,6 +50,8 @@ var (
 	universes       []yugaware.Universe
 	currentUniverse yugaware.Universe
 
+	accessKeys []yugaware.AccessKey
+
 	mountPaths []string
 
 	sshParallelism int
@@ -137,6 +139,7 @@ func getlogs() {
 			os.Exit(1)
 		}
 	}
+	accessKeys, _ = getAccessKeys(currentUniverse)
 	oldMain()
 
 	dbg("Leave")
@@ -273,7 +276,7 @@ func yugawareLogin() {
 
 	loginUrl := apiBaseUrl + "/login"
 	response, err := httpClient.PostForm(loginUrl, url.Values{"email": {yugawareUsername}, "password": {yugawarePassword}})
-	// TODO:
+	// TODO: Figure out why I added a TODO here
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Yugaware login failed: %v\n", err)
 		os.Exit(1)
@@ -345,15 +348,11 @@ func getUniverseById(universeId string) (yugaware.Universe, error) {
 
 	dbg("Leave")
 
-	return yugaware.Universe{}, fmt.Errorf("Could not find Universe with identifier '%s'", universeId)
+	return yugaware.Universe{}, fmt.Errorf("could not find Universe with identifier '%s'", universeId)
 }
 
-func oldMain() {
-	dbg("Enter")
-	// TODO: Use Swagger?
-
-	// Retrieve access key info for the provider
-	ProviderUUID := currentUniverse.UniverseDetails.Clusters[0].UserIntent.Provider
+func getAccessKeys(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
+	ProviderUUID := universe.UniverseDetails.Clusters[0].UserIntent.Provider
 	KeyUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/providers/" + ProviderUUID + "/access_keys"
 	dbg(fmt.Sprintf("Retrieving access key information from %v", KeyUrl))
 	response, err := httpClient.Get(KeyUrl)
@@ -368,15 +367,22 @@ func oldMain() {
 
 	//fmt.Fprintf(os.Stderr, "Access Key Info: %s\n", body)
 
-	var accessKeys []yugaware.AccessKey
 	// TODO: Error handling
-	_ = json.Unmarshal(body, &accessKeys)
+	var keys []yugaware.AccessKey
+	_ = json.Unmarshal(body, &keys)
 
-	dbg(fmt.Sprintf("Parsed access key information: %+v", accessKeys))
-	if len(accessKeys) == 0 {
-		fmt.Println("Failed to retrieve access key information. No access keys found in Universe info. Is this a Kubernetes Universe?")
-		os.Exit(1)
+	dbg(fmt.Sprintf("Parsed access key information: %+v", keys))
+	err = nil
+	if len(keys) == 0 {
+		err = fmt.Errorf("no access keys found in Universe info")
 	}
+
+	return keys, err
+}
+
+func oldMain() {
+	dbg("Enter")
+	// TODO: Use Swagger?
 
 	// TODO: Use https://github.com/tylarb/clusterExec?
 	SshUser := accessKeys[0].KeyInfo.SshUser
