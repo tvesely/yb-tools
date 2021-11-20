@@ -139,7 +139,13 @@ func getlogs() {
 			os.Exit(1)
 		}
 	}
-	accessKeys, _ = getAccessKeys(currentUniverse)
+
+	var err error
+	accessKeys, err = getAccessKeys(currentUniverse)
+	if err != nil {
+		fmt.Printf("Failed to connect to universe %s: %s\n", universeId, err)
+		os.Exit(1)
+	}
 	oldMain()
 
 	dbg("Leave")
@@ -347,29 +353,35 @@ func getUniverseById(universeId string) (yugaware.Universe, error) {
 	}
 
 	dbg("Leave")
-
 	return yugaware.Universe{}, fmt.Errorf("could not find Universe with identifier '%s'", universeId)
 }
 
 func getAccessKeys(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
+	dbg("Enter")
+
+	var keys []yugaware.AccessKey
+
 	ProviderUUID := universe.UniverseDetails.Clusters[0].UserIntent.Provider
 	KeyUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/providers/" + ProviderUUID + "/access_keys"
 	dbg(fmt.Sprintf("Retrieving access key information from %v", KeyUrl))
 	response, err := httpClient.Get(KeyUrl)
 	if err != nil {
-		fmt.Printf("Failed to retrieve access key information: %v", err)
-		os.Exit(1)
+		return keys, err
 	}
 
-	// TODO: Error handling
-	body, _ := io.ReadAll(response.Body)
+	var body []byte
+	body, err = io.ReadAll(response.Body)
 	response.Body.Close()
+	if err != nil {
+		return keys, err
+	}
 
 	//fmt.Fprintf(os.Stderr, "Access Key Info: %s\n", body)
 
-	// TODO: Error handling
-	var keys []yugaware.AccessKey
-	_ = json.Unmarshal(body, &keys)
+	err = json.Unmarshal(body, &keys)
+	if err != nil {
+		return keys, err
+	}
 
 	dbg(fmt.Sprintf("Parsed access key information: %+v", keys))
 	err = nil
@@ -377,6 +389,7 @@ func getAccessKeys(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
 		err = fmt.Errorf("no access keys found in Universe info")
 	}
 
+	dbg("Leave")
 	return keys, err
 }
 
