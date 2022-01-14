@@ -51,8 +51,12 @@ var (
 	currentUniverse yugaware.Universe
 
 	accessKeys []yugaware.AccessKey
+	privateKey ssh.Signer
 
 	mountPaths []string
+
+	collectIntervalSince time.Duration
+	collectIntervalUntil time.Duration
 
 	sshParallelism int
 
@@ -89,11 +93,16 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to the Yugaware platform server")
 	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware platform server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
 
+	// TODO: Add flags for SSH user and port?
+
 	rootCmd.PersistentFlags().StringVar(&universeId, "universe", "", "Specify the name or UUID of a Universe from which to collect the logs")
 
 	rootCmd.PersistentFlags().StringSliceVar(&mountPaths, "mountpaths", []string{"/mnt/d0"}, "Specify a comma separated list of the filesystem paths where Yugabyte DB data resides")
 
-	rootCmd.PersistentFlags().IntVar(&sshParallelism, "parallel", 4, "Specify the number of Universe nodes to connect to in parallel")
+	rootCmd.PersistentFlags().DurationVarP(&collectIntervalSince, "since", "A", time.Since(time.Unix(0, 0)), "Collect logs created since (e.g. 2d; default a long time ago). Applies only to logs with timestamped filenames.")
+	rootCmd.PersistentFlags().DurationVarP(&collectIntervalUntil, "until", "B", time.Duration(0), "Collect logs created before (e.g. 1d; default now). Applies only to logs with timestamped filenames.")
+
+	rootCmd.PersistentFlags().IntVar(&sshParallelism, "parallel", 4, "Specify the maximum number of Universe nodes to connect to in parallel")
 
 	// TODO: Implement an option to install sos?
 	// As the centos user: /usr/bin/sudo /usr/bin/yum install sos -y
@@ -118,8 +127,14 @@ func getlogs() {
 	validatePassword()
 	configHttpClient()
 	yugawareLogin()
-	universes = getUniverseList()
+	// TODO: Move this into selectUniverse?
+	var err error
+	universes, err = getUniverseList()
+	if err != nil {
+		fmt.Printf("Failed to retrieve Universe list: %s", err)
+	}
 	// TODO: Put this selection logic into a func
+	//currentUniverse = selectUniverse(universes, universeId)
 	if len(universes) == 0 {
 		fmt.Println("No universes found. Exiting.")
 		os.Exit(0)
@@ -131,7 +146,6 @@ func getlogs() {
 			fmt.Println("Multiple universes found and no universe identifier (name or UUID) specified. Exiting.")
 			os.Exit(1)
 		}
-		var err error
 		// TODO: Is this making a copy of the struct? That may be sub-optimal.
 		currentUniverse, err = getUniverseById(universeId)
 		if err != nil {
@@ -140,12 +154,18 @@ func getlogs() {
 		}
 	}
 
-	var err error
-	accessKeys, err = getAccessKeys(currentUniverse)
+	accessKeys, err = getAccessKeyList(currentUniverse)
 	if err != nil {
 		fmt.Printf("Failed to connect to universe %s: %s\n", universeId, err)
 		os.Exit(1)
 	}
+
+	privateKey, err = getPrivateKey(accessKeys[0])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	oldMain()
 
 	dbg("Leave")
@@ -308,7 +328,7 @@ func yugawareLogin() {
 	dbg("Leave")
 }
 
-func getUniverseList() []yugaware.Universe {
+func getUniverseList() ([]yugaware.Universe, error) {
 	dbg("Enter")
 
 	UniverseUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/universes"
@@ -316,29 +336,30 @@ func getUniverseList() []yugaware.Universe {
 	fmt.Println("Retrieving Universe list")
 	dbg(fmt.Sprintf("Retrieving Universe list from %v", UniverseUrl))
 
+	var universeList []yugaware.Universe
+
 	response, err := httpClient.Get(UniverseUrl)
 	if err != nil {
-		fmt.Printf("Failed to retrieve Universe list: %v", err)
+		return universeList, fmt.Errorf("failed to retrieve Universe list: %v", err)
 	}
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	var body []byte
+	body, err = io.ReadAll(response.Body)
 	if err != nil {
-		fmt.Printf("Failed to read Universe list: %v", err)
+		return universeList, fmt.Errorf("failed to read Universe list: %v", err)
 	}
 	dbg(fmt.Sprintf("Raw universe JSON: %s", body))
 
-	var universeList []yugaware.Universe
-
 	err = json.Unmarshal(body, &universeList)
 	if err != nil {
-		fmt.Printf("Failed to parse Universe list: %v", err)
+		return universeList, fmt.Errorf("failed to parse Universe list: %v", err)
 	}
 
 	dbg(fmt.Sprintf("Universes: %+v", universeList))
 
 	dbg("Leave")
-	return universeList
+	return universeList, nil
 }
 
 func getUniverseById(universeId string) (yugaware.Universe, error) {
@@ -356,7 +377,7 @@ func getUniverseById(universeId string) (yugaware.Universe, error) {
 	return yugaware.Universe{}, fmt.Errorf("could not find Universe with identifier '%s'", universeId)
 }
 
-func getAccessKeys(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
+func getAccessKeyList(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
 	dbg("Enter")
 
 	var keys []yugaware.AccessKey
@@ -393,6 +414,18 @@ func getAccessKeys(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
 	return keys, err
 }
 
+func getPrivateKey(key yugaware.AccessKey) (ssh.Signer, error) {
+	dbg("Enter")
+
+	keyBytes, err := os.ReadFile(key.KeyInfo.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
+	}
+
+	dbg("Leave")
+	return ssh.ParsePrivateKey(keyBytes)
+}
+
 func oldMain() {
 	dbg("Enter")
 	// TODO: Use Swagger?
@@ -407,15 +440,10 @@ func oldMain() {
 		SshPort = 22
 	}
 
-	privateKey, err := readPrivateKey(accessKeys[0].KeyInfo.PrivateKey)
-	if err != nil {
-		fmt.Printf("Failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
-		os.Exit(1)
-	}
-
 	for i, node := range currentUniverse.UniverseDetails.NodeDetailsSet {
 		getNodeLogs(privateKey, SshPort, SshUser, node)
 		// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
+		// TODO: Support K8s Universes
 		IpAddress := node.CloudInfo.PrivateIp
 
 		conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
@@ -491,17 +519,9 @@ func oldMain() {
 	dbg("Leave")
 }
 
-func readPrivateKey(keyFile string) (ssh.Signer, error) {
-	dbg("Enter")
-	keyBytes, err := os.ReadFile(keyFile)
-	if err != nil {
-		return nil, err
-	}
-	dbg("Leave")
-	return ssh.ParsePrivateKey(keyBytes)
-}
-
 func getNodeLogs(PrivateKey ssh.Signer, SshPort int, SshUser string, node yugaware.NodeDetails) {
+	// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
+	// TODO: Support K8s Universes
 	IpAddress := node.CloudInfo.PrivateIp
 
 	conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
