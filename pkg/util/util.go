@@ -22,6 +22,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
 )
 
@@ -36,6 +40,20 @@ func MaskOut(value string) string {
 }
 
 func PasswordPrompt() (string, error) {
+	promptError := func(err error) (string, error) {
+		return "", fmt.Errorf("unable to get password: %w", err)
+	}
+	fmt.Print("Enter password: ")
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return promptError(err)
+	}
+	fmt.Println()
+
+	return string(password), nil
+}
+
+func NewPasswordPrompt() (string, error) {
 	promptError := func(err error) (string, error) {
 		return "", fmt.Errorf("unable to get password: %w", err)
 	}
@@ -75,4 +93,28 @@ func ConfirmationDialog() error {
 	default:
 		return fmt.Errorf(`invalid input: must be "yes" or "no"`)
 	}
+}
+
+func GetLogger(module string, debug bool) (logr.Logger, error) {
+	level := zapcore.InfoLevel
+	if debug {
+		level = zapcore.DebugLevel
+	}
+
+	zc := zap.NewProductionConfig()
+
+	zc.Level = zap.NewAtomicLevelAt(level)
+
+	if !debug {
+		zc.DisableStacktrace = true
+		zc.Encoding = "console"
+		zc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	}
+
+	z, err := zc.Build()
+	if err != nil {
+		return logr.Logger{}, err
+	}
+	log := zapr.NewLogger(z).WithName(module)
+	return log, nil
 }

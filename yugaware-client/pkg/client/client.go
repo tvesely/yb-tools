@@ -325,6 +325,13 @@ func (c *YugawareClient) persistCookies() error {
 	return c.cookiejar.Save()
 }
 
+func (c *YugawareClient) LoggedIn() bool {
+	if c.userUUID != "" && c.customerUUID != "" {
+		return true
+	}
+	return false
+}
+
 func splitHostPort(hostname string) (string, string, error) {
 	var p string
 	var err error

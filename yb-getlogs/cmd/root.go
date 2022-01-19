@@ -1,454 +1,256 @@
+/*
+Copyright © 2021 Yugabyte Support
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cmd
 
 import (
 	"bufio"
 	"bytes"
-	"crypto/tls"
-	"encoding/json"
 	"fmt"
-	"github.com/bramvdbogaerde/go-scp"
-	"github.com/spf13/cobra"
-	"github.com/yugabyte/yb-tools/yb-getlogs/entity/yugaware"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/publicsuffix"
-	"golang.org/x/term"
-	"io"
-	"net/http"
-	"net/http/cookiejar"
-	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bramvdbogaerde/go-scp"
+	"github.com/go-logr/logr"
+	"github.com/go-openapi/strfmt"
+	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/yugabyte/yb-tools/pkg/util"
+	"github.com/yugabyte/yb-tools/yb-getlogs/pkg/cmdutil"
+	yugaware2 "github.com/yugabyte/yb-tools/yugaware-client/entity/yugaware"
+	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client"
+	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/client/access_keys"
+	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/models"
+	"golang.org/x/crypto/ssh"
 )
 
 var (
+	cfgFile string
+
 	Version = "DEV"
-
-	debugEnabled bool
-
-	logfile string
-
-	yugawareHostname string
-	yugawarePort     string
-	yugawareUsername string
-	yugawarePassword string
-
-	disableHttps     bool
-	disableCertCheck bool
-	httpTimeout      time.Duration
-
-	httpClient *http.Client
-
-	apiBaseUrl string
-	ywa        yugaware.YugawareAuth
-
-	universeId      string
-	universes       []yugaware.Universe
-	currentUniverse yugaware.Universe
-
-	accessKeys []yugaware.AccessKey
-	privateKey ssh.Signer
-
-	mountPaths []string
-
-	collectIntervalSince time.Duration
-	collectIntervalUntil time.Duration
-
-	sshParallelism int
-
-	rootCmd = &cobra.Command{
-		Use:     "yb-getlogs",
-		Short:   "A utility for gathering YugabyteDB logs across a Universe",
-		Version: Version,
-		Run: func(cmd *cobra.Command, args []string) {
-			getlogs()
-		},
-	}
 )
 
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = RootInit()
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&debugEnabled, "debug", false, "Enable debug logging")
-
-	// TODO: Implement logging
-	rootCmd.PersistentFlags().StringVar(&logfile, "logfile", "yb-getlogs.log", "Specify a logfile name. Will be created in the current working directory if no path specified. Not implemented yet.")
-
-	rootCmd.PersistentFlags().StringVarP(&yugawareHostname, "hostname", "H", "", "Hostname or IP address of the Yugaware platform server (default \"localhost\")")
-	// TODO: Allow environment variables for this flag, as with other connectivity flags
-	rootCmd.PersistentFlags().StringVarP(&yugawarePort, "port", "p", "", "Port number to use for connecting to the Yugaware platform (optional)")
-	rootCmd.PersistentFlags().StringVarP(&yugawareUsername, "username", "U", "", "Yugaware login name (email)")
-	rootCmd.PersistentFlags().StringVarP(&yugawarePassword, "password", "P", "", "Yugaware password")
-
-	rootCmd.PersistentFlags().BoolVar(&disableHttps, "http-insecure", false, "Use http instead of https when connecting to the Yugaware platform server (not recommended)")
-	rootCmd.PersistentFlags().BoolVar(&disableCertCheck, "no-check-certificate", false, "Disable strict certificate checking when connecting to the Yugaware platform server")
-	rootCmd.PersistentFlags().DurationVar(&httpTimeout, "http-timeout", time.Second*30, "Specify a timeout for HTTP connections to the Yugaware platform server. Accepts a duration with unit (e.g. 30s). Set to 0 to disable.")
-
-	// TODO: Add flags for SSH user and port?
-
-	rootCmd.PersistentFlags().StringVar(&universeId, "universe", "", "Specify the name or UUID of a Universe from which to collect the logs")
-
-	rootCmd.PersistentFlags().StringSliceVar(&mountPaths, "mountpaths", []string{"/mnt/d0"}, "Specify a comma separated list of the filesystem paths where Yugabyte DB data resides")
-
-	rootCmd.PersistentFlags().DurationVarP(&collectIntervalSince, "since", "A", time.Since(time.Unix(0, 0)), "Collect logs created since (e.g. 2d; default a long time ago). Applies only to logs with timestamped filenames.")
-	rootCmd.PersistentFlags().DurationVarP(&collectIntervalUntil, "until", "B", time.Duration(0), "Collect logs created before (e.g. 1d; default now). Applies only to logs with timestamped filenames.")
-
-	rootCmd.PersistentFlags().IntVar(&sshParallelism, "parallel", 4, "Specify the maximum number of Universe nodes to connect to in parallel")
-
-	// TODO: Implement an option to install sos?
-	// As the centos user: /usr/bin/sudo /usr/bin/yum install sos -y
-	/*
-		[centos@yb-dev-ianderson-gcp-n1 ~]$ sudo sosreport --batch -q
-
-		sosreport (version 3.9)
-
-		Your sosreport has been generated and saved in:
-		  /var/tmp/sosreport-yb-dev-ianderson-gcp-n1-2021-08-12-rstsumo.tar.xz
-	*/
+	cobra.OnInitialize(initConfig)
 }
 
-func getlogs() {
-	dbg("Enter")
+// TODO: Implement an option to install sos?
+// As the centos user: /usr/bin/sudo /usr/bin/yum install sos -y
+/*
+	[centos@yb-dev-ianderson-gcp-n1 ~]$ sudo sosreport --batch -q
 
-	// TODO: Mask passwords in this output
-	dbg(fmt.Sprintf("Called using the following command line: %v", os.Args))
+	sosreport (version 3.9)
 
-	validateHostname()
-	validateUsername()
-	validatePassword()
-	configHttpClient()
-	yugawareLogin()
-	// TODO: Move this into selectUniverse?
-	var err error
-	universes, err = getUniverseList()
-	if err != nil {
-		fmt.Printf("Failed to retrieve Universe list: %s", err)
-	}
-	// TODO: Put this selection logic into a func
-	//currentUniverse = selectUniverse(universes, universeId)
-	if len(universes) == 0 {
-		fmt.Println("No universes found. Exiting.")
-		os.Exit(0)
-	} else if len(universes) == 1 {
-		currentUniverse = universes[0]
+	Your sosreport has been generated and saved in:
+	  /var/tmp/sosreport-yb-dev-ianderson-gcp-n1-2021-08-12-rstsumo.tar.xz
+*/
+
+// initConfig reads in config file and ENV variables if set.
+func initConfig() {
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
 	} else {
-		if universeId == "" {
-			// TODO: Present a list of Universes and allow the user to choose if there's more than one Universe and no Universe was specified on the CLI
-			fmt.Println("Multiple universes found and no universe identifier (name or UUID) specified. Exiting.")
-			os.Exit(1)
-		}
-		// TODO: Is this making a copy of the struct? That may be sub-optimal.
-		currentUniverse, err = getUniverseById(universeId)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		// Find home directory.
+		home, err := homedir.Dir()
+		cobra.CheckErr(err)
+
+		// Search config in home directory with name ".yb_getlogs" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigName(".yb_getlogs")
 	}
 
-	accessKeys, err = getAccessKeyList(currentUniverse)
-	if err != nil {
-		fmt.Printf("Failed to connect to universe %s: %s\n", universeId, err)
-		os.Exit(1)
-	}
+	viper.SetEnvPrefix("YW")
+	viper.AutomaticEnv() // read in environment variables that match
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	privateKey, err = getPrivateKey(accessKeys[0])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	oldMain()
-
-	dbg("Leave")
+	// If a config file is found, read it in.
+	_ = viper.ReadInConfig()
 }
 
-func getFunctionName() string {
-	pc := make([]uintptr, 15)
-	n := runtime.Callers(3, pc)
-	frames := runtime.CallersFrames(pc[:n])
-	frame, _ := frames.Next()
-	return frame.Function
+func RootInit() *cobra.Command {
+	globalOptions := &cmdutil.GetLogsGlobalOptions{}
+
+	ctx := cmdutil.NewCommandContext().
+		WithGlobalOptions(globalOptions)
+
+	options := &YBGetLogsOptions{}
+
+	cmd := &cobra.Command{
+		Use:     "yb-getlogs",
+		Short:   "A utility for gathering YugabyteDB logs across a Universe",
+		Version: Version,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := ctx.WithCmd(cmd).WithOptions(options).Setup()
+			if err != nil {
+				return err
+			}
+
+			// Positional argument
+			options.UniverseIdentifier = args[0]
+
+			yugawareClient, err := ConnectToYugaware(ctx, ctx.Log, options)
+			if err != nil {
+				return err
+			}
+
+			if !yugawareClient.LoggedIn() {
+				err = options.validateUsername(ctx)
+				if err != nil {
+					return err
+				}
+				err = options.validatePassword(ctx)
+				if err != nil {
+					return err
+				}
+				err = yugawareLogin(ctx, yugawareClient, options)
+				if err != nil {
+					return err
+				}
+			}
+
+			return getlogs(ctx, yugawareClient, options)
+		},
+	}
+
+	cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.yb_getlogs.yaml)")
+	globalOptions.AddFlags(cmd)
+	options.AddFlags(cmd)
+
+	// Top level commands
+	//cmd.AddCommand(GetNodeLogs(ctx))
+	return cmd
 }
 
-func dbg(msg string) {
-	if debugEnabled {
-		fmt.Fprintln(os.Stderr, getFunctionName(), msg)
-	}
+func ConnectToYugaware(ctx *cmdutil.YBGetlogsContext, log logr.Logger, options *YBGetLogsOptions) (*client.YugawareClient, error) {
+	return client.New(ctx, log, options.Hostname).
+		TLSOptions(&client.TLSOptions{
+			SkipHostVerification: options.SkipHostVerification,
+			CaCertPath:           options.CACert,
+			CertPath:             options.ClientCert,
+			KeyPath:              options.ClientKey,
+		}).APIToken(options.APIToken).
+		TimeoutSeconds(options.DialTimeout).
+		Connect()
 }
 
-// TODO: DRY the next three funcs out
-func validateHostname() {
-	dbg("Enter")
+type YBGetLogsOptions struct {
+	//positional argument
+	UniverseIdentifier string
 
-	if yugawareHostname != "" {
-		dbg("Found hostname '" + yugawareHostname + "' on the CLI")
-	} else {
-		dbg("No hostname specified on the CLI")
-		dbg("Checking for hostname in YUGAWARE_HOSTNAME environment variable")
-		yugawareHostname = os.Getenv("YUGAWARE_HOSTNAME")
-	}
-	if yugawareHostname == "" {
-		fmt.Println("No hostname specified. Falling back to 'localhost'.")
-		yugawareHostname = "localhost"
-	}
-	dbg("Using hostname '" + yugawareHostname + "'")
+	Hostname             string        `mapstructure:"hostname"`
+	DialTimeout          int           `mapstructure:"dialtimeout"`
+	SkipHostVerification bool          `mapstructure:"skiphostverification"`
+	CACert               string        `mapstructure:"cacert"`
+	ClientCert           string        `mapstructure:"client_cert"`
+	ClientKey            string        `mapstructure:"client_key"`
+	MountPaths           []string      `mapstructure:"mountpaths"`
+	CollectIntervalSince time.Duration `mapstructure:"collect_interval_since"`
+	CollectIntervalUntil time.Duration `mapstructure:"collect_interval_until"`
+	SSHParallelism       int           `mapstructure:"parallel"`
 
-	dbg("Leave")
+	APIToken string `mapstructure:"api_token"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"` // TODO: prevent logging of this field by overwriting the logr field
 }
 
-func validateUsername() {
-	dbg("Enter")
+func (o *YBGetLogsOptions) AddFlags(cmd *cobra.Command) {
+	// Global configuration flags
+	flags := cmd.Flags()
+	flags.StringVar(&o.Hostname, "hostname", "localhost:8080", "hostname of yugaware")
+	flags.IntVar(&o.DialTimeout, "dialtimeout", 10, "number of seconds for dial timeouts")
+	flags.BoolVar(&o.SkipHostVerification, "skiphostverification", false, "skip tls host verification")
+	flags.StringVarP(&o.CACert, "cacert", "c", "", "the path to the CA certificate")
+	flags.StringVar(&o.ClientCert, "client-cert", "", "the path to the client certificate")
+	flags.StringVar(&o.ClientKey, "client-key", "", "the path to the client key file")
+	//flags.StringVar(&logfile, "logfile", "yb-getlogs.log", "Specify a logfile name. Will be created in the current working directory if no path specified.")
+	flags.StringSliceVar(&o.MountPaths, "mountpaths", []string{"/mnt/d0"}, "Specify a comma separated list of the filesystem paths where Yugabyte DB data resides")
+	flags.DurationVarP(&o.CollectIntervalSince, "since", "A", time.Since(time.Unix(0, 0)), "Collect logs created since (e.g. 2d; default a long time ago). Applies only to logs with timestamped filenames.")
+	flags.DurationVarP(&o.CollectIntervalUntil, "until", "B", time.Duration(0), "Collect logs created before (e.g. 1d; default now). Applies only to logs with timestamped filenames.")
+	flags.IntVar(&o.SSHParallelism, "parallel", 4, "Specify the maximum number of Universe nodes to connect to in parallel")
 
-	if yugawareUsername != "" {
-		dbg("Found username '" + yugawareUsername + "' on the CLI")
-	} else {
-		dbg("No username specified on the CLI")
-		dbg("Checking for username in YUGAWARE_USER environment variable")
-		yugawareUsername = os.Getenv("YUGAWARE_USER")
-	}
-	if yugawareUsername == "" {
-		dbg("Checking for username in YUGAWARE_USERNAME environment variable")
-		yugawareUsername = os.Getenv("YUGAWARE_USERNAME")
-	}
-	// TODO: Prompt for username?
-	if yugawareUsername == "" {
-		dbg("Failed to find username")
-		fmt.Println("No --username specified and no YUGAWARE_USER environment variable set. Specify a username and try again.")
-		os.Exit(1)
-	}
-	dbg("Using username '" + yugawareUsername + "'")
-
-	dbg("Leave")
+	flags.StringVar(&o.APIToken, "api-token", "", "api token for yugaware session")
+	flags.StringVar(&o.Username, "username", "", "username for yugaware login")
+	flags.StringVar(&o.Password, "password", "", "password for yugaware login")
 }
 
-func validatePassword() {
-	dbg("Enter")
-	if yugawarePassword != "" {
-		dbg("Using password specified on the CLI")
-	} else {
-		dbg("No password specified on the CLI")
-		dbg("Checking for password in YUGAWARE_PASS environment variable")
-		yugawarePassword = os.Getenv("YUGAWARE_PASS")
-	}
-	if yugawarePassword == "" {
-		dbg("Checking for password in YUGAWARE_PASSWORD environment variable")
-		yugawarePassword = os.Getenv("YUGAWARE_PASSWORD")
-	}
-	if yugawarePassword == "" {
-		dbg("Asking the user for the password")
-		fmt.Print("Please enter the password for Yugaware user '" + yugawareUsername + "': ")
-		passwordBytes, err := term.ReadPassword(0)
-		if err != nil {
-			fmt.Println("Failed to read password from terminal.")
-		}
-		fmt.Println("")
-		yugawarePassword = string(passwordBytes)
-	}
-	if yugawarePassword == "" {
-		dbg("Failed to find password")
-		fmt.Println("No --password specified and no YUGAWARE_PASS environment variable set. Specify a username and try again.")
-		os.Exit(1)
-	}
-	dbg("Found a password (but not recording it in the logs)")
-
-	dbg("Leave")
+func (o *YBGetLogsOptions) Validate(_ *cmdutil.YBGetlogsContext) error {
+	return nil
 }
 
-func configHttpClient() {
-	dbg("Enter")
-
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+func getlogs(ctx *cmdutil.YBGetlogsContext, yugawareClient *client.YugawareClient, options *YBGetLogsOptions) error {
+	currentUniverse, err := yugawareClient.GetUniverseByIdentifier(options.UniverseIdentifier)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create cookie jar for HTTP client: %v\n", err)
+		return err
 	}
 
-	transport := http.DefaultTransport.(*http.Transport)
-	if disableCertCheck {
-		transport = http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-	httpClient = &http.Client{Jar: jar, Timeout: httpTimeout, Transport: transport}
-
-	var protocolString string
-	if disableHttps {
-		protocolString = "http://"
-	} else {
-		protocolString = "https://"
+	if currentUniverse == nil {
+		return fmt.Errorf("universe %s not found", options.UniverseIdentifier)
 	}
 
-	portString := ""
-	if yugawarePort != "" {
-		portString = ":" + yugawarePort
-	}
-	apiBaseUrl = protocolString + yugawareHostname + portString + "/api"
-
-	dbg("Leave")
-}
-
-func yugawareLogin() {
-	dbg("Enter")
-
-	// TODO: Factor this API wrapper out into a separate module
-	fmt.Println("Logging into Yugaware server")
-
-	loginUrl := apiBaseUrl + "/login"
-	response, err := httpClient.PostForm(loginUrl, url.Values{"email": {yugawareUsername}, "password": {yugawarePassword}})
-	// TODO: Figure out why I added a TODO here
+	accessKeys, err := getAccessKeyList(ctx, yugawareClient, currentUniverse)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Yugaware login failed: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("could not obtain access keys for universe %s: %w", currentUniverse.Name, err)
 	}
-	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	privateKey, err := getPrivateKey(ctx, accessKeys[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse login response body: %v\n", err)
+		return err
 	}
-	dbg(fmt.Sprintf("Raw login response: %s", body))
-	if response.StatusCode == 401 {
-		fmt.Fprintf(os.Stderr, "Yugaware login failed: %s\n", body)
-		os.Exit(1)
-	}
-
-	err = json.Unmarshal(body, &ywa)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse authentication response: %v\n", err)
-		os.Exit(1)
-	}
-
-	dbg("Leave")
-}
-
-func getUniverseList() ([]yugaware.Universe, error) {
-	dbg("Enter")
-
-	UniverseUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/universes"
-
-	fmt.Println("Retrieving Universe list")
-	dbg(fmt.Sprintf("Retrieving Universe list from %v", UniverseUrl))
-
-	var universeList []yugaware.Universe
-
-	response, err := httpClient.Get(UniverseUrl)
-	if err != nil {
-		return universeList, fmt.Errorf("failed to retrieve Universe list: %v", err)
-	}
-	defer response.Body.Close()
-
-	var body []byte
-	body, err = io.ReadAll(response.Body)
-	if err != nil {
-		return universeList, fmt.Errorf("failed to read Universe list: %v", err)
-	}
-	dbg(fmt.Sprintf("Raw universe JSON: %s", body))
-
-	err = json.Unmarshal(body, &universeList)
-	if err != nil {
-		return universeList, fmt.Errorf("failed to parse Universe list: %v", err)
-	}
-
-	dbg(fmt.Sprintf("Universes: %+v", universeList))
-
-	dbg("Leave")
-	return universeList, nil
-}
-
-func getUniverseById(universeId string) (yugaware.Universe, error) {
-	dbg("Enter")
-
-	// This may produce unexpected results if some idiot has set a Universe name that is a valid UUID for another
-	// Universe. Don't do this.
-	for _, universe := range universes {
-		if universe.UniverseUUID == universeId || universe.Name == universeId {
-			return universe, nil
-		}
-	}
-
-	dbg("Leave")
-	return yugaware.Universe{}, fmt.Errorf("could not find Universe with identifier '%s'", universeId)
-}
-
-func getAccessKeyList(universe yugaware.Universe) ([]yugaware.AccessKey, error) {
-	dbg("Enter")
-
-	var keys []yugaware.AccessKey
-
-	ProviderUUID := universe.UniverseDetails.Clusters[0].UserIntent.Provider
-	KeyUrl := apiBaseUrl + "/customers/" + ywa.CustomerUUID + "/providers/" + ProviderUUID + "/access_keys"
-	dbg(fmt.Sprintf("Retrieving access key information from %v", KeyUrl))
-	response, err := httpClient.Get(KeyUrl)
-	if err != nil {
-		return keys, err
-	}
-
-	var body []byte
-	body, err = io.ReadAll(response.Body)
-	response.Body.Close()
-	if err != nil {
-		return keys, err
-	}
-
-	//fmt.Fprintf(os.Stderr, "Access Key Info: %s\n", body)
-
-	err = json.Unmarshal(body, &keys)
-	if err != nil {
-		return keys, err
-	}
-
-	dbg(fmt.Sprintf("Parsed access key information: %+v", keys))
-	err = nil
-	if len(keys) == 0 {
-		err = fmt.Errorf("no access keys found in Universe info")
-	}
-
-	dbg("Leave")
-	return keys, err
-}
-
-func getPrivateKey(key yugaware.AccessKey) (ssh.Signer, error) {
-	dbg("Enter")
-
-	keyBytes, err := os.ReadFile(key.KeyInfo.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key %v: %s", accessKeys[0].KeyInfo.PrivateKey, err)
-	}
-
-	dbg("Leave")
-	return ssh.ParsePrivateKey(keyBytes)
-}
-
-func oldMain() {
-	dbg("Enter")
-	// TODO: Use Swagger?
 
 	// TODO: Use https://github.com/tylarb/clusterExec?
-	SshUser := accessKeys[0].KeyInfo.SshUser
-	if SshUser == "" {
-		SshUser = "yugabyte"
+	sshUser := accessKeys[0].KeyInfo.SSHUser
+	if sshUser == "" {
+		sshUser = "yugabyte"
 	}
-	SshPort := accessKeys[0].KeyInfo.SshPort
-	if SshPort == 0 {
-		SshPort = 22
+
+	sshPort := accessKeys[0].KeyInfo.SSHPort
+	if sshPort == 0 {
+		sshPort = 22
 	}
 
 	for i, node := range currentUniverse.UniverseDetails.NodeDetailsSet {
-		getNodeLogs(privateKey, SshPort, SshUser, node)
+		err = getNodeLogs(ctx, privateKey, sshPort, sshUser, node, options.MountPaths)
+		if err != nil {
+			ctx.Log.Error(err, "failed to get node logs")
+		}
 		// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 		// TODO: Support K8s Universes
-		IpAddress := node.CloudInfo.PrivateIp
+		ipAddress := node.CloudInfo.PrivateIP
 
-		conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
+		conn, err := ssh.Dial("tcp", ipAddress+":"+strconv.Itoa(int(sshPort)), &ssh.ClientConfig{
 			Config: ssh.Config{},
-			User:   SshUser,
+			User:   sshUser,
 			Auth:   []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
 			// TODO: Do not ignore the host key
 			HostKeyCallback:   ssh.InsecureIgnoreHostKey(),
@@ -459,12 +261,12 @@ func oldMain() {
 			Timeout: time.Second * 30,
 		})
 		if err != nil {
-			fmt.Printf("Failed to dial: %s", err)
-			os.Exit(1)
+			ctx.Log.Error(err, "failed to dial", "host", ipAddress, "port", sshPort, "node", node)
+			return err
 		}
 		fmt.Println("Connected!")
 
-		_ = testSsh(conn)
+		_ = testSSH(ctx, conn)
 
 		// TODO: Parallelize with goroutines
 		// TODO: Use waitgroup to wait for all go routines to finish
@@ -496,7 +298,7 @@ func oldMain() {
 			os.Exit(1)
 		}
 
-		err = client.CopyFromRemote(targetFile, ".bashrc")
+		err = client.CopyFromRemote(ctx, targetFile, ".bashrc")
 		if err != nil {
 			fmt.Println("Error copying from remote file", err)
 			os.Exit(1)
@@ -516,18 +318,82 @@ func oldMain() {
 		}
 
 	}
-	dbg("Leave")
+	return nil
 }
 
-func getNodeLogs(PrivateKey ssh.Signer, SshPort int, SshUser string, node yugaware.NodeDetails) {
+func (o *YBGetLogsOptions) validateUsername(ctx *cmdutil.YBGetlogsContext) error {
+	// TODO: Prompt for username?
+	if o.Username == "" {
+		return fmt.Errorf("no username specified")
+	}
+	ctx.Log.V(1).Info("using username", "username", o.Username)
+
+	return nil
+}
+
+func (o *YBGetLogsOptions) validatePassword(ctx *cmdutil.YBGetlogsContext) error {
+	var err error
+	if o.Password == "" {
+		o.Password, err = util.PasswordPrompt()
+		if err != nil {
+			return err
+		}
+		ctx.Log.V(1).Info("using password from prompt")
+	}
+	return nil
+}
+
+func yugawareLogin(ctx *cmdutil.YBGetlogsContext, yugawareClient *client.YugawareClient, options *YBGetLogsOptions) error {
+	ctx.Log.Info("Logging into Yugaware server")
+
+	_, err := yugawareClient.Login(&yugaware2.LoginRequest{
+		Email:    options.Username,
+		Password: options.Password,
+	})
+
+	return err
+}
+
+func getAccessKeyList(ctx *cmdutil.YBGetlogsContext, yugawareClient *client.YugawareClient, universe *models.UniverseResp) ([]*models.AccessKey, error) {
+	providerUUID := strfmt.UUID(universe.UniverseDetails.Clusters[0].UserIntent.Provider)
+
+	ctx.Log.V(1).Info("retrieving access key information")
+	params := access_keys.NewListParams().
+		WithCUUID(yugawareClient.CustomerUUID()).
+		WithPUUID(providerUUID)
+
+	accessKeys, err := yugawareClient.PlatformAPIs.AccessKeys.List(params, yugawareClient.SwaggerAuth)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(accessKeys.GetPayload()) == 0 {
+		return nil, fmt.Errorf("access key request for provider %s returned no results", providerUUID)
+	}
+	ctx.Log.V(1).Info("obtained access keys", "access_keys", accessKeys.GetPayload())
+
+	return accessKeys.GetPayload(), err
+}
+
+func getPrivateKey(ctx *cmdutil.YBGetlogsContext, key *models.AccessKey) (ssh.Signer, error) {
+	ctx.Log.V(1).Info("reading private key", "key", key)
+	keyBytes, err := os.ReadFile(key.KeyInfo.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key %v: %s", key.KeyInfo.PrivateKey, err)
+	}
+
+	return ssh.ParsePrivateKey(keyBytes)
+}
+
+func getNodeLogs(ctx *cmdutil.YBGetlogsContext, privateKey ssh.Signer, sshPort int32, SSHUser string, node *models.NodeDetailsResp, mountPaths []string) error {
 	// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 	// TODO: Support K8s Universes
-	IpAddress := node.CloudInfo.PrivateIp
+	ipAddress := node.CloudInfo.PrivateIP
 
-	conn, err := ssh.Dial("tcp", IpAddress+":"+strconv.Itoa(SshPort), &ssh.ClientConfig{
+	conn, err := ssh.Dial("tcp", ipAddress+":"+strconv.Itoa(int(sshPort)), &ssh.ClientConfig{
 		Config:          ssh.Config{},
-		User:            SshUser,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(PrivateKey)},
+		User:            SSHUser,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		BannerCallback:  nil,
 		ClientVersion:   "",
@@ -537,24 +403,30 @@ func getNodeLogs(PrivateKey ssh.Signer, SshPort int, SshUser string, node yugawa
 		Timeout: time.Second * 30,
 	})
 	if err != nil {
-		fmt.Printf("Failed to dial: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to dial: %s", err)
 	}
 	defer conn.Close()
 	fmt.Println("Connected!")
 
-	_ = testSsh(conn)
-	_ = getFileList(conn)
+	err = testSSH(ctx, conn)
+	if err != nil {
+		return err
+	}
+	err = getFileList(ctx, conn, mountPaths)
+	if err != nil {
+		return err
+	}
+
 	// TODO: Write file list to temp file on node
 	// TODO: Confirm free disk space on nodes before tarring
 	// TODO: Tar up files listed in temp file
 
 	// TODO: Confirm free disk space on Yugaware server before copying
 	// TODO: Copy tarball to platform node
+	return nil
 }
 
-func testSsh(conn *ssh.Client) error {
-	dbg("Enter")
+func testSSH(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client) error {
 	// We need a new session for each SSH command
 	session, err := conn.NewSession()
 	if err != nil {
@@ -564,14 +436,14 @@ func testSsh(conn *ssh.Client) error {
 	defer session.Close()
 
 	buff, err := session.CombinedOutput("/bin/date")
-	if err == nil {
-		dbg(fmt.Sprintf("Output of date: %s", buff))
+	if err != nil {
+		ctx.Log.Error(err, "date command failed", "output", string(buff))
 	}
-	dbg("Leave")
+	ctx.Log.Info("date command succeeded", "output", string(buff))
 	return err
 }
 
-func getFileList(conn *ssh.Client) error {
+func getFileList(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client, mountPaths []string) error {
 	session, err := conn.NewSession()
 	if err != nil {
 		fmt.Println("Failed to create session:", err)
@@ -592,7 +464,7 @@ func getFileList(conn *ssh.Client) error {
 		searchPaths = append(searchPaths, homeDir)
 	} else {
 		// TODO: Warn that we won't be able to collect the server.conf flag files
-		dbg("Unused debug line to stop the linter from complaining about a TODO branch")
+		ctx.Log.Error(nil, "unused debug line to stop the linter from complaining about a TODO branch")
 	}
 
 	searchPathString := strings.Join(searchPaths, " ")
@@ -601,39 +473,43 @@ func getFileList(conn *ssh.Client) error {
 	// Use Output here instead of CombinedOutput because we want to discard STDERR
 	buff, err := session.Output(fmt.Sprintf("/usr/bin/find %s -name '*' %s", searchPathString, " -printf \"%p\\0%s\\n\""))
 	if err != nil {
-		fmt.Printf("Failed to get directory listing for mountpoints %s: %v", searchPathString, err)
+		ctx.Log.Error(err, "failed to get directory listing for mountpoints", "searchpaths", searchPathString, "output", string(buff))
 	}
-	dbg(fmt.Sprintf("Directory listing of mountpoints %s:\n%s", searchPathString, buff))
+	ctx.Log.V(1).Info("directory listing of mountpoints", "searchpath", searchPathString, "output", string(buff))
 
 	fileList := buildFileList(buff)
-	dbg(fmt.Sprintf("Initial file List: %v", fileList))
+	ctx.Log.V(1).Info("initial file list", "filelist", fileList)
 	fileList = filterFileList(fileList)
-	dbg(fmt.Sprintf("Filtered file List: %v", fileList))
+	ctx.Log.V(1).Info("filtered file list", "filelist", fileList)
 	// TODO: Filter file list
 	// TODO: Return file list
 	return err
 }
 
-func buildFileList(buff []byte) []yugaware.LogFile {
-	var fileList []yugaware.LogFile
+type LogFile struct {
+	File     string
+	Bytesize string
+}
+
+func buildFileList(buff []byte) []LogFile {
+	var fileList []LogFile
 
 	// Parse file list into name and size
 	// We can't create a scanner from a raw byte slice, so we have to wrap it in a byte[] reader first
 	scanner := bufio.NewScanner(bytes.NewReader(buff))
 	for scanner.Scan() {
 		s := strings.Split(scanner.Text(), "\x00")
-		fileList = append(fileList, yugaware.LogFile{
+		fileList = append(fileList, LogFile{
 			File:     s[0],
 			Bytesize: s[1],
 		})
-		dbg(fmt.Sprintln("File:", s[0], "Size:", s[1]))
 	}
 
 	return fileList
 }
 
-func filterFileList(fileList []yugaware.LogFile) []yugaware.LogFile {
-	var filteredList []yugaware.LogFile
+func filterFileList(fileList []LogFile) []LogFile {
+	var filteredList []LogFile
 
 	matchPatterns := compileMatchPatterns()
 
@@ -642,10 +518,7 @@ func filterFileList(fileList []yugaware.LogFile) []yugaware.LogFile {
 		// inside the conditional.
 		for _, pattern := range matchPatterns {
 			if pattern.MatchString(file.File) {
-				dbg(fmt.Sprintf("File %s matched pattern %s\n", file.File, pattern.String()))
 				filteredList = append(filteredList, file)
-			} else {
-				dbg(fmt.Sprintf("File %s did not match pattern %s\n", file.File, pattern.String()))
 			}
 		}
 		// TODO: Add matching and date filtering for date filtered files
@@ -668,11 +541,7 @@ func compileMatchPatterns() []*regexp.Regexp {
 	matchStrings = append(matchStrings, "(?:master|tserver)/conf/server.conf")
 
 	for _, matchString := range matchStrings {
-		matchPattern, err := regexp.Compile(matchString)
-		if err != nil {
-			// TODO: Error handling
-			dbg("Unused debug line to stop the linter from complaining about a TODO branch")
-		}
+		matchPattern := regexp.MustCompile(matchString)
 		matchPatterns = append(matchPatterns, matchPattern)
 	}
 

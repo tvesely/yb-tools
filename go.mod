@@ -6,6 +6,7 @@ require (
 	github.com/alexeyco/simpletable v1.0.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/blang/vfs v1.0.0
+	github.com/bramvdbogaerde/go-scp v1.2.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v1.1.0
 	github.com/go-logr/zapr v1.1.0
@@ -40,6 +41,7 @@ require (
 	github.com/yugabyte/gocql v0.0.0-20200602185649-ef3952a45ff4
 	go.mongodb.org/mongo-driver v1.7.3 // indirect
 	go.uber.org/zap v1.19.0
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/net v0.0.0-20211008194852-3b03d305991f
 	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect

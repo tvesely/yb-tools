@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/yugabyte/yb-tools/pkg/flag"
+	"github.com/yugabyte/yb-tools/pkg/util"
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client"
 )
 
@@ -106,7 +107,7 @@ func (ctx *YWClientContext) Setup() error {
 
 	var err error
 
-	ctx.Log, err = GetLogger(ctx.Cmd.Name(), ctx.GlobalOptions.Debug)
+	ctx.Log, err = util.GetLogger(ctx.Cmd.Name(), ctx.GlobalOptions.Debug)
 	if err != nil {
 		return setupError(err)
 	}
