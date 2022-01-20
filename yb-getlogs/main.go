@@ -5,7 +5,6 @@ import (
 )
 
 func main() {
-	// TODO: Add flags for specifying universe name or UUID
 	// TODO: Add flags to control node list source(s) (platform postgres, YB masters, or manual)
 	// TODO: Add flags for specifying individual nodes by number or name
 	// TODO: Add flags for controlling time window (before / after)

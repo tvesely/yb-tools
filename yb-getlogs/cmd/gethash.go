@@ -23,23 +23,28 @@ import (
 	"github.com/yugabyte/yb-tools/yb-getlogs/pkg/cmdutil"
 )
 
-func GetNodeLogsCmd(ctx *cmdutil.YBGetlogsContext) *cobra.Command {
+func GetHashCmd(_ *cmdutil.YBGetlogsContext) *cobra.Command {
 	return &cobra.Command{
-		Use:   "getnodelogs",
-		Short: "collect logs from a yugabyte node",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := ctx.WithCmd(cmd).Setup()
-			if err != nil {
-				return err
-			}
-
-			return getNodeLogs(ctx)
+		Use:   "gethash",
+		Short: "get the hash of this binary",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return printHash()
 		},
 	}
 }
 
-func getNodeLogs(_ *cmdutil.YBGetlogsContext) error {
-	fmt.Printf("would get node logs")
+func printHash() error {
+	binaryFile, err := openSelf()
+	if err != nil {
+		return err
+	}
+	defer binaryFile.Close()
+
+	hash, err := getHash(binaryFile)
+	if err != nil {
+		return err
+	}
+	fmt.Println(hash)
 
 	return nil
 }

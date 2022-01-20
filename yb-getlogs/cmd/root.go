@@ -19,8 +19,12 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -129,10 +133,12 @@ func RootInit() *cobra.Command {
 				if err != nil {
 					return err
 				}
+
 				err = options.validatePassword(ctx)
 				if err != nil {
 					return err
 				}
+
 				err = yugawareLogin(ctx, yugawareClient, options)
 				if err != nil {
 					return err
@@ -148,7 +154,9 @@ func RootInit() *cobra.Command {
 	options.AddFlags(cmd)
 
 	// Top level commands
-	//cmd.AddCommand(GetNodeLogs(ctx))
+	cmd.AddCommand(GetHashCmd(ctx))
+	cmd.AddCommand(GetNodeLogsCmd(ctx))
+
 	return cmd
 }
 
@@ -239,85 +247,23 @@ func getlogs(ctx *cmdutil.YBGetlogsContext, yugawareClient *client.YugawareClien
 		sshPort = 22
 	}
 
-	for i, node := range currentUniverse.UniverseDetails.NodeDetailsSet {
-		err = getNodeLogs(ctx, privateKey, sshPort, sshUser, node, options.MountPaths)
-		if err != nil {
-			ctx.Log.Error(err, "failed to get node logs")
-		}
+	wg := &sync.WaitGroup{}
+	for _, node := range currentUniverse.UniverseDetails.NodeDetailsSet {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, node *models.NodeDetailsResp) {
+			err = getRemoteNodeLogs(ctx, privateKey, sshPort, sshUser, node, options.MountPaths)
+			if err != nil {
+				ctx.Log.Error(err, "failed to get node logs")
+			}
+			wg.Done()
+		}(wg, node)
 		// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 		// TODO: Support K8s Universes
-		ipAddress := node.CloudInfo.PrivateIP
-
-		conn, err := ssh.Dial("tcp", ipAddress+":"+strconv.Itoa(int(sshPort)), &ssh.ClientConfig{
-			Config: ssh.Config{},
-			User:   sshUser,
-			Auth:   []ssh.AuthMethod{ssh.PublicKeys(privateKey)},
-			// TODO: Do not ignore the host key
-			HostKeyCallback:   ssh.InsecureIgnoreHostKey(),
-			BannerCallback:    nil,
-			ClientVersion:     "",
-			HostKeyAlgorithms: nil,
-			// TODO: Make SSH timeout configurable
-			Timeout: time.Second * 30,
-		})
-		if err != nil {
-			ctx.Log.Error(err, "failed to dial", "host", ipAddress, "port", sshPort, "node", node)
-			return err
-		}
-		fmt.Println("Connected!")
-
-		_ = testSSH(ctx, conn)
-
-		// TODO: Parallelize with goroutines
-		// TODO: Use waitgroup to wait for all go routines to finish
-
-		wg := &sync.WaitGroup{}
-
-		// Do this for each goroutine directly before calling the goroutine
-		wg.Add(1)
-
-		go func(wg *sync.WaitGroup) {
-			// At end of goroutine
-			wg.Done()
-		}(wg)
-
 		// After all goroutines have been called:
 		// Waits for waitgroup to be done (Add => increments, Done => decrements)
-		wg.Wait()
-
-		// TODO: Ensure license information for go-scp is included before shipping
-		client, err := scp.NewClientBySSH(conn)
-		if err != nil {
-			fmt.Println("Error creating new SSH session from existing connection", err)
-			os.Exit(1)
-		}
-
-		targetFile, err := os.Create("./testfile" + strconv.Itoa(i))
-		if err != nil {
-			fmt.Println("Error creating local file for writing", err)
-			os.Exit(1)
-		}
-
-		err = client.CopyFromRemote(ctx, targetFile, ".bashrc")
-		if err != nil {
-			fmt.Println("Error copying from remote file", err)
-			os.Exit(1)
-		}
-
-		err = targetFile.Close()
-		if err != nil {
-			fmt.Println("Error closing local file", err)
-			os.Exit(1)
-		}
-
-		// TODO: Refactor so we can use defer
-		err = conn.Close()
-		if err != nil {
-			fmt.Println("Failed to close connection:", err)
-			os.Exit(1)
-		}
 
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -385,7 +331,7 @@ func getPrivateKey(ctx *cmdutil.YBGetlogsContext, key *models.AccessKey) (ssh.Si
 	return ssh.ParsePrivateKey(keyBytes)
 }
 
-func getNodeLogs(ctx *cmdutil.YBGetlogsContext, privateKey ssh.Signer, sshPort int32, SSHUser string, node *models.NodeDetailsResp, mountPaths []string) error {
+func getRemoteNodeLogs(ctx *cmdutil.YBGetlogsContext, privateKey ssh.Signer, sshPort int32, SSHUser string, node *models.NodeDetailsResp, mountPaths []string) error {
 	// TODO: Support connecting by hostname instead of IP, which is permitted for some providers
 	// TODO: Support K8s Universes
 	ipAddress := node.CloudInfo.PrivateIP
@@ -405,25 +351,133 @@ func getNodeLogs(ctx *cmdutil.YBGetlogsContext, privateKey ssh.Signer, sshPort i
 	if err != nil {
 		return fmt.Errorf("Failed to dial: %s", err)
 	}
-	defer conn.Close()
-	fmt.Println("Connected!")
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			ctx.Log.Error(err, "failed to close connection")
+		}
+	}()
+	fmt.Printf("Connected to %s!\n", node.NodeName)
 
-	err = testSSH(ctx, conn)
+	err = copyToNode(ctx, conn)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to copy binary to nodes: %w", err)
 	}
-	err = getFileList(ctx, conn, mountPaths)
-	if err != nil {
-		return err
-	}
+	return executeGetNodeLogs(ctx, conn)
+}
 
+func executeGetNodeLogs(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client) error {
 	// TODO: Write file list to temp file on node
 	// TODO: Confirm free disk space on nodes before tarring
 	// TODO: Tar up files listed in temp file
 
 	// TODO: Confirm free disk space on Yugaware server before copying
 	// TODO: Copy tarball to platform node
+	// TODO: Ensure license information for go-scp is included before shipping
+	session, err := conn.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	remotePath := getRemotePath()
+
+	// TODO: pass through necessary flags
+	ctx.Log.Info("executing getnodelogs")
+	buff, err := session.CombinedOutput(remotePath + " getnodelogs")
+	if err != nil {
+		ctx.Log.Error(err, "command result", "output", string(buff))
+		return err
+	}
+	ctx.Log.V(1).Info("command returned output", "output", string(buff))
+
 	return nil
+}
+
+func openSelf() (*os.File, error) {
+	rawPath, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	realpath, err := filepath.EvalSymlinks(rawPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Open(realpath)
+}
+
+func getRemotePath() string {
+	filename := filepath.Base(os.Args[0])
+
+	return "/tmp/" + filename
+}
+
+func copyToNode(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client) error {
+	ctx.Log.Info("creating scp client")
+	scpClient, err := scp.NewClientBySSH(conn)
+	if err != nil {
+		return fmt.Errorf("error creating new SSH session from existing connection: %w", err)
+	}
+
+	binaryFile, err := openSelf()
+	if err != nil {
+		return err
+	}
+	defer binaryFile.Close()
+
+	filename := filepath.Base(os.Args[0])
+
+	remotePath := "/tmp/" + filename
+
+	ctx.Log.V(1).Info("copying binary to host", "remote_path", remotePath, "host", conn.RemoteAddr())
+	err = scpClient.CopyFromFile(ctx, *binaryFile, remotePath, "0755")
+	if err != nil {
+		return fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	myHash, err := getHash(binaryFile)
+	if err != nil {
+		return err
+	}
+	ctx.Log.V(1).Info("hashed binary", "hash", myHash)
+
+	session, err := conn.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	buff, err := session.CombinedOutput("/tmp/" + filename + " gethash")
+	if err != nil {
+		ctx.Log.Error(err, "command result", "output", string(buff))
+	}
+
+	remoteHash := strings.TrimSpace(string(buff))
+	if remoteHash != myHash {
+		return fmt.Errorf("expected remote binary to match %s got: %s", myHash, remoteHash)
+	}
+	ctx.Log.V(1).Info("both local and remote hashes match", "remote_hash", remoteHash)
+
+	return nil
+}
+
+func getHash(file *os.File) (string, error) {
+	off, err := file.Seek(int64(0), 0)
+	if err != nil {
+		return "", err
+	}
+	if off != 0 {
+		return "", fmt.Errorf("unable to seek to beginning of file")
+	}
+
+	hasher := sha256.New()
+	_, err = io.Copy(hasher, file)
+	if err != nil {
+		return "", fmt.Errorf("unable to hash file: %w", err)
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func testSSH(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client) error {
@@ -469,18 +523,18 @@ func getFileList(ctx *cmdutil.YBGetlogsContext, conn *ssh.Client, mountPaths []s
 
 	searchPathString := strings.Join(searchPaths, " ")
 
-	// 🤢
-	// Use Output here instead of CombinedOutput because we want to discard STDERR
-	buff, err := session.Output(fmt.Sprintf("/usr/bin/find %s -name '*' %s", searchPathString, " -printf \"%p\\0%s\\n\""))
-	if err != nil {
-		ctx.Log.Error(err, "failed to get directory listing for mountpoints", "searchpaths", searchPathString, "output", string(buff))
-	}
-	ctx.Log.V(1).Info("directory listing of mountpoints", "searchpath", searchPathString, "output", string(buff))
-
-	fileList := buildFileList(buff)
-	ctx.Log.V(1).Info("initial file list", "filelist", fileList)
-	fileList = filterFileList(fileList)
-	ctx.Log.V(1).Info("filtered file list", "filelist", fileList)
+	//🤢
+	//Use Output here instead of CombinedOutput because we want to discard STDERR
+	_, err = session.Output(fmt.Sprintf("/usr/bin/find %s -name '*' %s", searchPathString, " -printf \"%p\\0%s\\n\""))
+	//if err != nil {
+	//	ctx.Log.Error(err, "failed to get directory listing for mountpoints", "searchpaths", searchPathString, "output", string(buff))
+	//}
+	//ctx.Log.V(1).Info("directory listing of mountpoints", "searchpath", searchPathString, "output", string(buff))
+	//
+	//fileList := buildFileList(buff)
+	//ctx.Log.V(1).Info("initial file list", "filelist", fileList)
+	//fileList = filterFileList(fileList)
+	//ctx.Log.V(1).Info("filtered file list", "filelist", fileList)
 	// TODO: Filter file list
 	// TODO: Return file list
 	return err
