@@ -26,6 +26,7 @@ import (
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/certificate"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/provider"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/session"
+	"github.com/yugabyte/yb-tools/yugaware-client/cmd/supportBundle"
 	"github.com/yugabyte/yb-tools/yugaware-client/cmd/universe"
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/cmdutil"
 )
@@ -118,7 +119,15 @@ func RootInit() *cobra.Command {
 			},
 		},
 		{
-			Name:        "session",
+			Name:        "support_bundle",
+			Description: "Support bundle management",
+			Commands: []*cobra.Command{
+				supportBundle.CreateCmd(ctx),
+				supportBundle.ListCmd(ctx),
+			},
+		},
+		{
+			Name:        "support",
 			Description: "Session management utilities",
 			Commands: []*cobra.Command{
 				session.ServerLogCmd(ctx),
