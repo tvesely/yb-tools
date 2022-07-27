@@ -125,6 +125,7 @@ func RootInit(fs vfs.Filesystem) *cobra.Command {
 			Name:        "util",
 			Description: "Miscellaneous utilities",
 			Commands: []*cobra.Command{
+				util.IdentifyOrphanedTablesCmd(ctx),
 				util.TableCreateCmd(ctx),
 				util.ResetStatStatementsCmd(ctx),
 			},
