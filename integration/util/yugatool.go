@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	"github.com/yugabyte/yb-tools/yugatool/api/yb/common"
+	"github.com/yugabyte/yb-tools/yugatool/api/yb/server"
 	"github.com/yugabyte/yb-tools/yugatool/api/yugatool/config"
 	"github.com/yugabyte/yb-tools/yugatool/cmd"
 	"github.com/yugabyte/yb-tools/yugatool/pkg/client"
@@ -19,6 +20,11 @@ import (
 	"github.com/yugabyte/yb-tools/yugaware-client/pkg/client/swagger/models"
 )
 
+type gflag struct {
+	flag         string
+	currentValue string
+	oldValue     string
+}
 type YugatoolContext struct {
 	*client.YBClient
 
@@ -33,6 +39,8 @@ type YugatoolContext struct {
 	UniverseInfo *models.UniverseResp
 
 	Fs vfs.Filesystem
+
+	hostFlagsMap map[*client.HostState][]gflag
 }
 
 func NewYugatoolContext(logger logr.Logger, universe *models.UniverseResp, masters []*common.HostPortPB, dialTimeout int64, cacert, clientCert, clientKey []byte, skipHostVerification bool) *YugatoolContext {
@@ -155,4 +163,37 @@ func (c *YugatoolContext) YSQLConnection() *sql.DB {
 	db, err := sql.Open("postgres", psqlInfo)
 	Expect(err).NotTo(HaveOccurred())
 	return db
+}
+
+func (c *YugatoolContext) SetMasterFlag(flag, value string, force bool) {
+	c.SetFlag(c.Master, flag, value, force)
+}
+
+func (c *YugatoolContext) SetFlag(host *client.HostState, flag, value string, force bool) {
+	if c.hostFlagsMap == nil {
+		c.hostFlagsMap = map[*client.HostState][]gflag{}
+	}
+	c.hostFlagsMap[host] = append(c.hostFlagsMap[host], c.setFlagInternal(host, flag, value, force))
+}
+
+func (c *YugatoolContext) setFlagInternal(host *client.HostState, flag, value string, force bool) gflag {
+	result, err := host.GenericService.SetFlag(&server.SetFlagRequestPB{
+		Flag:  &flag,
+		Value: &value,
+		Force: &force,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(result.GetResult()).To(Equal(server.SetFlagResponsePB_SUCCESS))
+	Expect(result.GetOldValue()).NotTo(BeNil())
+
+	return gflag{flag, value, *result.OldValue}
+}
+
+func (c *YugatoolContext) ResetFlags() {
+	for host, flags := range c.hostFlagsMap {
+		for _, flag := range flags {
+			_ = c.setFlagInternal(host, flag.flag, flag.oldValue, true)
+		}
+		c.hostFlagsMap[host] = []gflag{}
+	}
 }

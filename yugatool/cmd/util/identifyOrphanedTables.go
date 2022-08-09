@@ -209,7 +209,7 @@ func doIdentifyOrphanedTables(ctx *cmdutil.YugatoolContext, log logr.Logger, ybc
 	log.Info("found orphaned tables", "count", len(badOids), "oids", badOids)
 	for _, oid := range badOids {
 		if table, ok := oidToTableMap[oid]; ok {
-			ctx.Cmd.Printf("# %s\n", table)
+			ctx.Cmd.Printf("# oid: %d %s\n", oid, table)
 			if table.GetRelationType() == master.RelationType_USER_TABLE_RELATION {
 				ctx.Cmd.Println("yb-admin --master_addresses ${MASTERS} ${CERTSDIR} delete_table_by_id " + string(table.GetId()))
 			}
