@@ -1,0 +1,5952 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SendSafely REST API",
+    "description": "Documented endpoints for the SendSafely REST API. To call the endpoints a SendSafely API Key and Secret is required to calculate the request signature. <BR><BR><I>This document is a draft, and should be considered a work in progress.</I>",
+    "contact": {
+      "name": "SendSafely REST API Support",
+      "email": "support@sendsafely.com"
+    },
+    "version": "2.0"
+  },
+  "servers": [
+    {
+      "url": "https://demo.sendsafely.com/api/v2.0"
+    }
+  ],
+  "tags": [
+    {
+      "name": "package",
+      "description": "Create package, upload encrypted data, add recipients, and finalize"
+    },
+    {
+      "name": "user",
+      "description": "Get, modify user"
+    },
+    {
+      "name": "contact group",
+      "description": "Create/delete contact group, add/delete contact group user"
+    },
+    {
+      "name": "key management",
+      "description": "Sync keycodes, add/get/delete public key"
+    },
+    {
+      "name": "dropzone management",
+      "description": "add/get/delete dropzone recipients and update dropzone configurations"
+    },
+    {
+      "name": "recipient",
+      "description": "Get recipient package information"
+    },
+    {
+      "name": "config",
+      "description": "Verify credentials"
+    },
+    {
+      "name": "enterprise",
+      "description": "Get enterprise information"
+    }
+  ],
+  "paths": {
+    "/package/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Create a new package",
+        "description": "Create a new package",
+        "operationId": "CreatePackage",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "description": "SendSafely API Key (API_KEY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "description": "TIMESTAMP (ex: 2014-01-14T22:24:00+0000)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "description": "HmacSHA256(API_SECRET, API_KEY + URL_PATH + TIMESTAMP + REQUEST_BODY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePackageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePackageResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Sent Packages",
+        "description": "Get Sent Packages",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "description": "SendSafely API Key (API_KEY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "description": "TIMESTAMP (ex: 2014-01-14T22:24:00+0000)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "description": "HmacSHA256(API_SECRET, API_KEY + URL_PATH + TIMESTAMP + REQUEST_BODY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/rowParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSentPackagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/workspaces/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Workspace Packages",
+        "description": "Get Workspace Packages",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "description": "SendSafely API Key (API_KEY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "description": "TIMESTAMP (ex: 2014-01-14T22:24:00+0000)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "description": "HmacSHA256(API_SECRET, API_KEY + URL_PATH + TIMESTAMP + REQUEST_BODY)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/rowParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceSortFieldParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortOrderParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetWorkspacePackagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package information",
+        "description": "Get package information",
+        "operationId": "GetPackageInformation",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "example": "GVG2-MNZT",
+            "description": "Unique package identifier, which can be the packageId or packageCode values",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPackageInformationResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Update package information",
+        "description": "Update package information",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageInformationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete package",
+        "description": "Delete package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/temp/": {
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete temp package",
+        "description": "Delete temp package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "example": "GVG2-MNZT",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/finalize/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Finalize package",
+        "description": "Finalize the package<BR><BR>Note that the message property of the response contains the secure link for accessing the encrypted message. When sharing the link with a recipient, the client-side generated secret should be passed as the value of a keyCode parameter appended as a URL Fragment Identifier. For example&#58;<BR><BR>https://<span></span>companyabc.sendsafely.com:8443/receive/?thread=JRPE-XSR2&packageCode=EsUUhFULgu2H0X0hU8uDHzCBp02k4X62tTic2V1MsBY<B>#keyCode=XXXXYYYYY</b>",
+        "operationId": "FinalizePackage",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizePackageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizePackageResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/message/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Upload encrypted message",
+        "description": "Upload encrypted message. <BR><BR><p>To encrypt the message, you will need to use an encryption library that implements the OpenPGP message format. Specifically, the following is required when encrypting with OpenPGP&#58;<br><ul><li>The Symmetric-Key Algorithm should be 9 (AES-256)</li><li>The Compression Algorithm should be 0 (Uncompressed)</li><li>The Hash Algorithm should be 8 (SHA-256)</li></ul><p>The 256-bit encryption key is the package server secret concatenated with a random 256-bit secret generated client-side, which will be included as the \"keyCode\" parameter in the secure link.<p>",
+        "operationId": "UploadEncryptedMessage",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadEncryptedMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadEncryptedMessageResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/recipient/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Add recipient",
+        "description": "Add recipient",
+        "operationId": "AddRecipient",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRecipientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddRecipientResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Creates a new file within a package",
+        "description": "Creates a new file within a package. The unique fileId is returned as a result.",
+        "operationId": "CreateFile",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFileResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/{fileId}/upload-urls/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Upload URLs",
+        "description": "Gets the file part upload URLs for the file. Up to 25 urls are returned at once.",
+        "operationId": "GetUploadUrls",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetUploadUrlsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUploadUrlsResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/{fileId}/upload-complete/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Sets the file upload status as complete",
+        "description": "Sets the file upload status as complete. The server will verify that all segments are present within S3.",
+        "operationId": "UploadComplete",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadCompletedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadCompletedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/public-keys/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package publickeys",
+        "description": "Get package PublicKeys",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPublicKeysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/link/{publicKeyId}/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package keycode by public key id",
+        "description": "Add Keycode to Package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "publicKeyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddKeyCodeToPackageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Add Keycode by public key id",
+        "description": "Add Keycode to Package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "publicKeyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/recipient/{recipientId}/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package recipient by id",
+        "description": "Get package recipent by id",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddRecipientResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Update recipient",
+        "description": "Update Recipent",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRecipientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddRecipientResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete package recipient by id",
+        "description": "Delete package recipent by id",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}/file/{fileId}": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package directory file information",
+        "description": "Get package directory file information",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/{fileId}": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package file information",
+        "description": "Get package file information",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFileResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete package file",
+        "description": "Delete package file",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteFileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get directory information",
+        "description": "Get directory information",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryIndex",
+            "in": "query",
+            "description": "The index for paging subdirectories within the current directory",
+            "example": 0,
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "fileIndex",
+            "in": "query",
+            "description": "The index for paging files within the current directory",
+            "example": 0,
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/sortFieldParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortOrderParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDirectoryResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Rename workspace directory",
+        "description": "Rename workspace directory",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameWorkspaceDirectoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/activityLog/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package activity log",
+        "description": "Get package activity log",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetActivityLogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/{fileId}/download-urls/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Download URLs for File",
+        "description": "Gets the file part S3 download URLs for a file. Up to 25 urls are returned at once.",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetDownloadUrlsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDownloadUrlsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}/file/{fileId}/download-urls/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Download URLs for file in directory",
+        "description": "Gets the file part S3 download URLs for file in a directory. Up to 25 urls are returned at once.",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetDownloadUrlsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDownloadUrlsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}/file/{fileId}/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Move workspace file",
+        "description": "Move workspace file",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoveWorkspaceFileResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete workspace file",
+        "description": "Delete workspace file",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}/": {
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete workspace directory",
+        "description": "Delete workspace directory",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/move/{sourcedirectoryId}/{targetdirectoryId}/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Move workspace directory",
+        "description": "Move workspace directory",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourcedirectoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetdirectoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/organization/search/": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get organization packages",
+        "description": "Returns packages in the current user's organization based on provided search criteria. The search defaults to returning all packages up to the current date and time, if a specific value is not passed for each search criteria. A maximum of 100 records will be returned per method call. The calling user must be a SendSafely Enterprise Administrator.",
+        "operationId": "GetOrganizationPackages",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/rowParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetOrganizationPackagesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetOrganizationPackagesResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/directory/{directoryId}/subdirectory/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Create workspace subdirectory",
+        "description": "Create workspace subdirectory",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "directoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceSubdirectoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDirectoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/{recipientId}/public-keys/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get package recipient public keys",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPublicKeysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/recipients/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Add recipients to package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRecipientsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddRecipientsToPackageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/file/{fileId}/copy": {
+      "post": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Copies a file from a SendSafely Package to a SendSafely Workspace",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Get user information",
+        "description": "Get user information",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserInformationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/groups/": {
+      "get": {
+        "tags": [
+          "user"
+        ],
+        "summary": "Get user contact groups",
+        "description": "Get user contact groups",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserContactGroupsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/received/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get received packages",
+        "description": "Get received packages",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/rowParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetReceivedPackagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/archived/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get expired packages",
+        "description": "Get expired packages",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/rowParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetArchivedPackagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/group/{groupId}/": {
+      "put": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Add Contact Group to Package as Recipients",
+        "description": "Add Contact Group to Package as Recipients",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddContactGroupToPackageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Delete Contact Group from Package",
+        "description": "Delete Contact Group from Package",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package/{packageId}/message/{checksum}/": {
+      "get": {
+        "tags": [
+          "package"
+        ],
+        "summary": "Get Package Message",
+        "description": "Get Package Message",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "checksum",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "3d2f6810c0778001a3a3043a65d2ee458961fb59197c3d215cce29cc28621395",
+              "description": "HmacSHA256(keycode,packageCode)"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPackageMessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group/": {
+      "put": {
+        "tags": [
+          "contact group"
+        ],
+        "summary": "Create contact group",
+        "description": "Create contact group",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateContactGroupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group/{groupId}/user/": {
+      "put": {
+        "tags": [
+          "contact group"
+        ],
+        "summary": "Add contact group user",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddContactGroupUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddContactGroupUserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group/{groupId}/{userId}/": {
+      "delete": {
+        "tags": [
+          "contact group"
+        ],
+        "summary": "Delete contact group user",
+        "description": "Delete contact group user",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group/{groupId}/": {
+      "delete": {
+        "tags": [
+          "contact group"
+        ],
+        "summary": "Delete contact group",
+        "description": "Delete contact group",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteContactGroupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sync/{publicKeyId}/": {
+      "get": {
+        "tags": [
+          "key management"
+        ],
+        "summary": "Sync keycodes by public key id",
+        "description": "Sync keycodes by public key id",
+        "parameters": [
+          {
+            "name": "publicKeyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncKeycodesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public-key/": {
+      "put": {
+        "tags": [
+          "key management"
+        ],
+        "summary": "Add public key",
+        "description": "Add public key",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPublicKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddPublicKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public-key/{publicKeyId}/": {
+      "get": {
+        "tags": [
+          "key management"
+        ],
+        "summary": "Get public key by id",
+        "description": "Get public key by id",
+        "parameters": [
+          {
+            "name": "publicKeyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPublicKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "key management"
+        ],
+        "summary": "Delete public key",
+        "description": "Delete public key",
+        "parameters": [
+          {
+            "name": "publicKeyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/dropzone-recipients/": {
+      "get": {
+        "tags": [
+          "dropzone management"
+        ],
+        "summary": "Get dropzone recipients",
+        "description": "Get dropzone recipients",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDropzoneRecipientsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "dropzone management"
+        ],
+        "summary": "Add dropzone recipients",
+        "description": "Add dropzone recipients",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRecipientsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddDropzoneRecipientsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "dropzone management"
+        ],
+        "summary": "Delete dropzone recipient",
+        "description": "Delete dropzone recipient",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDropzoneRecipientResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/{userId}/dropzone/config/": {
+      "post": {
+        "tags": [
+          "dropzone management"
+        ],
+        "summary": "Update dropzone config",
+        "description": "Update dropzone config",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDropzoneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDropzoneConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/get-identity-cookie/": {
+      "get": {
+        "summary": "Get Identity Cookie",
+        "description": "Get Identity Cookie",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetIdentityCookieResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recipient/history/{recipientEmail}/": {
+      "get": {
+        "tags": [
+          "recipient"
+        ],
+        "summary": "Get recipient packages history",
+        "description": "Get recipient packages history",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientEmail",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRecipientHistoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/verify-credentials/": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Verify Credentials",
+        "description": "Verify Credentials",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyCredentialsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enterprise/": {
+      "get": {
+        "tags": [
+          "enterprise"
+        ],
+        "summary": "Get enterprise information",
+        "description": "Get enterprise information",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetEnterpriseInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enterprise/groups/": {
+      "get": {
+        "tags": [
+          "enterprise"
+        ],
+        "summary": "Get enterprise contact groups",
+        "description": "Get enterprise contact groups",
+        "parameters": [
+          {
+            "name": "ss-api-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ss-request-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "application/json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetEnterpriseContactGroupsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "rowParam": {
+        "name": "rowIndex",
+        "in": "query",
+        "description": "Starting row for data",
+        "example": 0,
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "pageParam": {
+        "name": "pageSize",
+        "in": "query",
+        "description": "Number of rows to return, maximum of 100",
+        "example": 100,
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "sortFieldParam": {
+        "name": "sortField",
+        "in": "query",
+        "description": "Column field for sorting",
+        "example": "name | date",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "sortOrderParam": {
+        "name": "sortOrder",
+        "in": "query",
+        "description": "Sort ordering",
+        "example": "asc | desc",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "workspaceSortFieldParam": {
+        "name": "sortField",
+        "in": "query",
+        "description": "Column field for sorting",
+        "example": "name | date | owner",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "GetOrganizationPackagesRequest": {
+        "title": "GetOrganizationPackagesRequest",
+        "type": "object",
+        "properties": {
+          "fromDate": {
+            "type": "string",
+            "example": "01/01/2019",
+            "description": "01/01/2019"
+          },
+          "toDate": {
+            "type": "string",
+            "example": "01/01/2019",
+            "description": "01/01/2019"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "string",
+            "example": "test@sendsafely.com",
+            "description": "test@sendsafely.com"
+          },
+          "recipient": {
+            "type": "string",
+            "example": "test@sendsafely.com",
+            "description": "test@sendsafely.com"
+          },
+          "status": {
+            "type": "string",
+            "example": "all | picked-up | incomplete | archived | active | expired",
+            "description": "all | picked-up | incomplete | archived | active | expired"
+          }
+        },
+        "example": {
+          "fromDate": "01/01/2019",
+          "filename": "",
+          "sender": "",
+          "toDate": "03/01/2019",
+          "recipient": "",
+          "status": "ACTIVE"
+        }
+      },
+      "GetPackageInformationResponse_confirmations": {
+        "type": "object",
+        "properties": {
+          "ipAddress": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "127.0.0.1"
+          },
+          "timestamp": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "Dec 12, 2018 2:24:38 PM"
+          },
+          "timeStampStr": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "Dec 12, 2018 at 14:24"
+          },
+          "isMessage": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreatePackageResp": {
+        "type": "object",
+        "properties": {
+          "packageId": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "4B88-CV9G",
+            "default": ""
+          },
+          "packageCode": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "E8FfOCwV4His4tlezIGi07qi0bQhxGQHcqVKYcqPcgg",
+            "default": ""
+          },
+          "serverSecret": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "ACbuj9OpJ7JWMqfYlGxfwH1Yjt39NYL1bQ",
+            "default": ""
+          },
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS",
+            "default": ""
+          }
+        }
+      },
+      "GetUploadUrlsResp": {
+        "type": "object",
+        "properties": {
+          "uploadUrls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetUploadUrlsResponse_uploadUrls"
+            }
+          }
+        }
+      },
+      "UpdateRecipientRequest": {
+        "title": "UpdateRecipientPhoneNumberRequest",
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "example": "(123) 456-7890",
+            "description": "(123) 456-7890"
+          },
+          "countrycode": {
+            "type": "string",
+            "example": "US",
+            "description": "US"
+          },
+          "role": {
+            "type": "string",
+            "example": "VIEWER | CONTRIBUTOR | MANAGER | OWNER",
+            "description": "VIEWER | CONTRIBUTOR | MANAGER | OWNER"
+          }
+        }
+      },
+      "AddRecipientRequest": {
+        "title": "AddRecipientRequest",
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "email": "recip1@example.com"
+        }
+      },
+      "AddRecipientResp": {
+        "type": "object",
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean",
+            "example": false
+          },
+          "checkForPublicKeys": {
+            "type": "boolean",
+            "example": true
+          },
+          "recipientId": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "cd7ba10a-e02d-4c4e-8778-839f37aa6297"
+          },
+          "email": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "recip1@example.com"
+          },
+          "phonenumbers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "countryCode": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "phonenumber": {
+                  "type": "integer",
+                  "example": 12345678
+                },
+                "wasUsedMostRecently": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          },
+          "fullName": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "External User"
+          },
+          "smsAuth": {
+            "type": "boolean",
+            "example": false
+          },
+          "isPackageOwner": {
+            "type": "boolean",
+            "example": false
+          },
+          "roleName": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "VIEWER"
+          },
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "UploadEncryptedMessageRequest": {
+        "title": "UploadEncryptedMessageRequest",
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "jA0ECQMCJBbBW/qJuSBg0kwByG9kJ6LTQ6o6hY6aPXiwFeHoRw1odiEUVWmDshYHfW4DxEAxOkt2h2uKiQ6je1PrQ2xOR8RjQFsAyruMlRYawmdksE5JOH0poL36"
+          }
+        }
+      },
+      "GetUploadUrlsRequest": {
+        "required": [
+          "part"
+        ],
+        "type": "object",
+        "properties": {
+          "part": {
+            "type": "integer",
+            "example": 1,
+            "description": "The file part number you would like as the starting point for this group of URLs. No more than 25 file parts are returned at once."
+          }
+        }
+      },
+      "UploadCompletedRequest": {
+        "required": [
+          "complete"
+        ],
+        "type": "object",
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS",
+            "default": ""
+          }
+        }
+      },
+      "GetUploadUrlsResponse_uploadUrls": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "type": "integer",
+            "example": 1
+          },
+          "url": {
+            "type": "string",
+            "example": "https://sendsafely-dual-region-us.s3-accelerate.amazonaws.com/commercial/AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE/11111111-2222-3333-4444-555555555555-1?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Expires=1554862678&Signature=OTP5Z0DIutXKbRRT4NwmxQG9jFk%3D"
+          }
+        }
+      },
+      "CreateFileRequest": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "example": "example.txt"
+          },
+          "parts": {
+            "type": "integer",
+            "example": 4
+          },
+          "filesize": {
+            "type": "number",
+            "example": 6884230
+          }
+        }
+      },
+      "AddKeyCodeToPackageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "-----BEGIN PGP PUBLIC KEY BLOCK----- -----END PGP PUBLIC KEY BLOCK-----\r\n\r\n"
+          },
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "FinalizePackageRequest": {
+        "title": "FinalizePackageRequest",
+        "required": [
+          "checksum"
+        ],
+        "type": "object",
+        "properties": {
+          "checksum": {
+            "type": "string",
+            "example": "3d2f6810c0778001a3a3043a65d2ee458961fb59197c3d215cce29cc28621395"
+          },
+          "undisclosedRecipients": {
+            "type": "boolean",
+            "example": false,
+            "description": "Optional, default is false, set to true if package has no recipients"
+          },
+          "password": {
+            "type": "string",
+            "example": "12345",
+            "description": "Optional unless password is set"
+          }
+        }
+      },
+      "GetPackageInformationResponse_approverList": {
+        "type": "object"
+      },
+      "CreatePackageRequest": {
+        "title": "CreatePackageRequest",
+        "type": "object",
+        "properties": {
+          "vdr": {
+            "type": "boolean",
+            "example": false,
+            "description": "Optional parameter that should only be set to true if creating a Workspace package"
+          }
+        }
+      },
+      "UploadCompletedResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "true"
+          }
+        }
+      },
+      "GetPackageInformationResp": {
+        "type": "object",
+        "properties": {
+          "packageId": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "GVG2-MNZT"
+          },
+          "packageCode": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "M0AEMIrTQe9XWRgGDKiKta1pXobmpKwAVafWgXjnBsw"
+          },
+          "serverSecret": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "ACbuj9NKTkvjZ71Gc0t5zuU1xvba9XAouA"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_recipients"
+            }
+          },
+          "contactGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_contactGroups"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_contactGroups"
+            }
+          },
+          "directories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_contactGroups"
+            }
+          },
+          "approverList": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_approverList"
+            }
+          },
+          "needsApproval": {
+            "type": "boolean",
+            "example": false
+          },
+          "state": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "PACKAGE_STATE_IN_PROGRESS"
+          },
+          "passwordRequired": {
+            "type": "boolean",
+            "example": false
+          },
+          "life": {
+            "type": "integer",
+            "example": 10
+          },
+          "isVDR": {
+            "type": "boolean",
+            "example": false
+          },
+          "isArchived": {
+            "type": "boolean",
+            "example": false
+          },
+          "packageSender": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "user@companyabc.com"
+          },
+          "packageTimestamp": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "Feb 1, 2019 2:07:28 PM"
+          },
+          "rootDirectoryId": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "8c3c2184-e73e-4137-be92-e9c5b5661258"
+          },
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "UploadEncryptedMessageResp": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "Success"
+          }
+        }
+      },
+      "FinalizePackageResp": {
+        "type": "object",
+        "properties": {
+          "approvers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "pattern": "^(.*)$",
+              "type": "string",
+              "example": ""
+            }
+          },
+          "needsLink": {
+            "type": "boolean",
+            "example": true
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "https://companyabc.sendsafely.com/receive/?thread=JRPE-XSR2&packageCode=EsUUhFULgu2H0X0hU8uDHzCBp02k4X62tTic2V1MsBY"
+          }
+        }
+      },
+      "GetPackageInformationResponse_contactGroups": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "GetPackageInformationResponse_recipients": {
+        "type": "object",
+        "properties": {
+          "recipientId": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "5d504769-78c4-4c0a-b982-945845ea2075"
+          },
+          "email": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "recip1@example.com"
+          },
+          "fullName": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "External User"
+          },
+          "needsApproval": {
+            "type": "boolean",
+            "example": false
+          },
+          "recipientCode": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "YN0P1G0xbS9mBSwohP9xPJSqwgKXMq4bCI5uTcx1KKM"
+          },
+          "confirmations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_confirmations"
+            }
+          },
+          "isPackageOwner": {
+            "type": "boolean",
+            "example": false
+          },
+          "checkForPublicKeys": {
+            "type": "boolean",
+            "example": false
+          },
+          "roleName": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "VIEWER"
+          }
+        }
+      },
+      "CreateFileResp": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": ""
+          }
+        }
+      },
+      "GetFileResponse": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "example": ""
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "example": ""
+                  },
+                  "fileSize": {
+                    "type": "string",
+                    "example": ""
+                  },
+                  "createdByEmail": {
+                    "type": "string",
+                    "example": ""
+                  },
+                  "uploaded": {
+                    "type": "string",
+                    "example": "Aug 22, 2019 6:27:02 PM"
+                  },
+                  "uploadedStr": {
+                    "type": "string",
+                    "example": "Thu Aug 22 at 18:27 (EDT)"
+                  },
+                  "oldVersions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "fileId": {
+                          "type": "string",
+                          "example": ""
+                        },
+                        "fileName": {
+                          "type": "string",
+                          "example": ""
+                        },
+                        "fileSize": {
+                          "type": "string",
+                          "example": ""
+                        },
+                        "createdByEmail": {
+                          "type": "string",
+                          "example": ""
+                        },
+                        "uploaded": {
+                          "type": "string",
+                          "example": "Aug 22, 2019 6:27:02 PM"
+                        },
+                        "uploadedStr": {
+                          "type": "string",
+                          "example": "Thu Aug 22 at 18:27 (EDT)"
+                        },
+                        "fileParts": {
+                          "type": "integer",
+                          "example": 1
+                        }
+                      }
+                    }
+                  },
+                  "fileParts": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetDirectoryResponse": {
+        "type": "object",
+        "properties": {
+          "directoryName": {
+            "type": "string",
+            "example": ""
+          },
+          "directoryId": {
+            "type": "string",
+            "example": ""
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "subDirectories": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetPublicKeysResponse": {
+        "type": "object",
+        "properties": {
+          "publicKeys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": ""
+                },
+                "key": {
+                  "type": "string",
+                  "example": "-----BEGIN PGP PUBLIC KEY BLOCK----- -----END PGP PUBLIC KEY BLOCK-----\r\n\r\n"
+                }
+              }
+            }
+          },
+          "response": {
+            "pattern": "^(.*)$",
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetActivityLogResponse": {
+        "type": "object",
+        "properties": {
+          "activityLogEntries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "activityLogId": {
+                  "type": "string",
+                  "example": ""
+                },
+                "timestamp": {
+                  "type": "string",
+                  "example": "Aug 22, 2019 6:27:02 PM"
+                },
+                "timestampStr": {
+                  "type": "string",
+                  "example": "Aug 22, 2019 at 18:27"
+                },
+                "ipAddress": {
+                  "type": "string",
+                  "example": ""
+                },
+                "packageId": {
+                  "type": "string",
+                  "example": ""
+                },
+                "targetId": {
+                  "type": "string",
+                  "example": ""
+                },
+                "actionDescription": {
+                  "type": "string",
+                  "example": "Added a new file test.txt"
+                },
+                "action": {
+                  "type": "string",
+                  "example": "FILE_CREATED"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "userEmail": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "userId": {
+                      "type": "string",
+                      "example": ""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "CreateWorkspaceSubdirectoryRequest": {
+        "title": "CreateWorkspaceSubdirectoryRequest",
+        "type": "object",
+        "properties": {
+          "directoryName": {
+            "type": "string",
+            "example": ""
+          }
+        }
+      },
+      "AddRecipientsToPackageResponse": {
+        "title": "AddRecipientsToPackageResponse",
+        "type": "object",
+        "properties": {
+          "approvalRequired": {
+            "type": "boolean",
+            "example": false
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_recipients"
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetUserInformationResponse": {
+        "title": "GetUserInformationResponse",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": ""
+          },
+          "email": {
+            "type": "string",
+            "example": ""
+          },
+          "clientKey": {
+            "type": "string",
+            "example": ""
+          },
+          "firstName": {
+            "type": "string",
+            "example": ""
+          },
+          "lastName": {
+            "type": "string",
+            "example": ""
+          },
+          "betaUser": {
+            "type": "boolean",
+            "example": false
+          },
+          "adminUser": {
+            "type": "boolean",
+            "example": true
+          },
+          "publicKey": {
+            "type": "boolean",
+            "example": false
+          },
+          "packageLife": {
+            "type": "integer",
+            "example": 10
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "CreateContactGroupRequest": {
+        "title": "CreateContactGroupRequest",
+        "type": "object",
+        "properties": {
+          "groupName": {
+            "type": "string",
+            "example": ""
+          },
+          "isEnterpriseGroup": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "CreateContactGroupResponse": {
+        "title": "CreateContactGroupResponse",
+        "type": "object",
+        "properties": {
+          "contactGroupId": {
+            "type": "string",
+            "example": ""
+          },
+          "contactGroupName": {
+            "type": "string",
+            "example": ""
+          },
+          "contactGroupUserEmails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "AddContactGroupUserRequest": {
+        "title": "AddContactGroupUserRequest",
+        "type": "object",
+        "properties": {
+          "userEmail": {
+            "type": "string",
+            "example": ""
+          }
+        }
+      },
+      "AddContactGroupUserResponse": {
+        "title": "AddContactGroupUserResponse",
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": ""
+          },
+          "userEmail": {
+            "type": "string",
+            "example": ""
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "DeleteContactGroupResponse": {
+        "title": "DeleteContactGroupResponse",
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "Contact Group has been deleted"
+          }
+        }
+      },
+      "SyncKeycodesResponse": {
+        "title": "SyncKeycodesResponse",
+        "type": "object",
+        "properties": {
+          "keycodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publicKeys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": ""
+                },
+                "key": {
+                  "type": "string",
+                  "example": "-----BEGIN PGP PUBLIC KEY BLOCK----- -----END PGP PUBLIC KEY BLOCK-----\r\n\r\n"
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "AddPublicKeyRequest": {
+        "title": "AddPublicKeyRequest",
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "example": ""
+          },
+          "description": {
+            "type": "string",
+            "example": ""
+          }
+        }
+      },
+      "AddPublicKeyResponse": {
+        "title": "AddPublicKeyResponse",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": ""
+          },
+          "description": {
+            "type": "string",
+            "example": ""
+          },
+          "dateStr": {
+            "type": "string",
+            "example": "18:27 on Aug 22, 2019"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetPublicKeyResponse": {
+        "title": "GetPublicKeyResponse",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": ""
+          },
+          "publicKey": {
+            "type": "string",
+            "example": ""
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "DeleteDropzoneRecipientResponse": {
+        "title": "DeleteDropzoneRecipientResponse",
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "Recipient Removed"
+          }
+        }
+      },
+      "GetDropzoneRecipientsResponse": {
+        "title": "GetDropzoneRecipientsResponse",
+        "type": "object",
+        "properties": {
+          "recipientEmailAddresses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "AddRecipientsRequest": {
+        "title": "AddRecipientsRequest",
+        "type": "object",
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AddDropzoneRecipientsResponse": {
+        "title": "AddDropzoneRecipientsResponse",
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "success": {
+                "type": "string",
+                "example": "Your list has been updated. It may take up to 30 minutes for all active items to be updated."
+              },
+              "successEmails": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnEmails": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "failEmails": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UpdateDropzoneConfigResponse": {
+        "title": "UpdateDropzoneConfigResponse",
+        "type": "object",
+        "properties": {
+          "dropzoneRecipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dropzoneLife": {
+            "type": "integer",
+            "example": 5
+          },
+          "dropzoneExternalPostUrl": {
+            "type": "string",
+            "example": ""
+          },
+          "dropzoneTextLabel": {
+            "type": "string",
+            "example": ""
+          },
+          "dropzoneEnableSecureMessage": {
+            "type": "boolean",
+            "example": false
+          },
+          "dropzoneRequireAuthentication": {
+            "type": "boolean",
+            "example": true
+          },
+          "dropzoneNotificationType": {
+            "type": "integer",
+            "example": 0
+          },
+          "dropzoneUrl": {
+            "type": "string",
+            "example": ""
+          },
+          "publicKey": {
+            "type": "string",
+            "example": ""
+          },
+          "publicSecret": {
+            "type": "string",
+            "example": ""
+          },
+          "isDropzoneEnabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "response": {
+            "type": "string",
+            "example": ""
+          },
+          "message": {
+            "type": "string",
+            "example": "Dropzone setting successfully updated"
+          }
+        }
+      },
+      "CopyFileRequest": {
+        "title": "CopyFileRequest",
+        "type": "object",
+        "properties": {
+          "targetPackageId": {
+            "type": "string"
+          },
+          "fileKey": {
+            "type": "string"
+          },
+          "targetDirectoryId": {
+            "type": "string"
+          },
+          "uploadType": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateDropzoneRequest": {
+        "title": "UpdateDropzoneLabelRequest",
+        "type": "object",
+        "properties": {
+          "dropzoneTextLabel": {
+            "type": "string",
+            "example": ""
+          },
+          "dropzoneNotificationType": {
+            "type": "integer",
+            "example": 0,
+            "description": "0 for Do not notify recipients, 1 for notify via email with trusted browser, 2 for notify via email with untrusted browser"
+          },
+          "dropzonePostUrl": {
+            "type": "string",
+            "example": "https://test.com",
+            "description": "https://test.com"
+          },
+          "dropzoneEnableMessage": {
+            "type": "boolean",
+            "example": true,
+            "description": "true to enable secure message"
+          },
+          "dropzoneRequireAuthentication": {
+            "type": "boolean",
+            "example": "true",
+            "description": "true to request users to verify email address"
+          },
+          "dropzoneRestrictDownload": {
+            "type": "boolean",
+            "example": "true",
+            "description": "true to restrict download and allow preview of pdf and images only"
+          }
+        }
+      },
+      "UpdatePackageInformationRequest": {
+        "title": "UpdatePackageLifeRequest",
+        "type": "object",
+        "properties": {
+          "life": {
+            "type": "integer",
+            "example": 10,
+            "description": "Only applicable to non-workspace packages"
+          },
+          "label": {
+            "type": "string",
+            "example": "My Workspace",
+            "description": "Only applicable to workspaces"
+          },
+          "checksum": {
+            "type": "string",
+            "example": "20ea6189a58d6618164d6b53cbc7b5dbeef2fa9a61186b13a80cf1f620987bc1",
+            "description": "HmacSHA256(keycode,packageCode) - Can only be set on a Workspace and by users with the Owner or Manager role."
+          }
+        }
+      },
+      "RenameWorkspaceDirectoryRequest": {
+        "title": "RenameWorkspaceDirectoryRequest",
+        "type": "object",
+        "properties": {
+          "directoryName": {
+            "type": "string",
+            "example": "test",
+            "description": "Workspace directory name"
+          }
+        }
+      },
+      "GetOrganizationPackagesResp": {
+        "title": "GetOrganizationPackagesResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResp"
+            }
+          }
+        }
+      },
+      "GetDownloadUrlsRequest": {
+        "title": "GetDownloadUrlsRequest",
+        "type": "object",
+        "properties": {
+          "checksum": {
+            "type": "string",
+            "example": "20ea6189a58d6618164d6b53cbc7b5dbeef2fa9a61186b13a80cf1f620987bc1",
+            "description": "HmacSHA256(keycode,packageCode)"
+          },
+          "startSegment": {
+            "type": "integer",
+            "example": 1,
+            "description": "The file part number you would like as the starting point for this group of URLs. No more than 25 file parts are returned at once."
+          },
+          "endSegment": {
+            "type": "integer",
+            "example": 25,
+            "description": "The file part number you would like as the ending point for this group of URLs. No more than 25 file parts are returned at once."
+          }
+        }
+      },
+      "DownloadUrlsResponse": {
+        "title": "DownloadUrlsResponse",
+        "type": "object",
+        "properties": {
+          "part": {
+            "type": "integer",
+            "example": 1
+          },
+          "url": {
+            "type": "string",
+            "example": "https://sendsafely-dual-region-us.s3-accelerate.amazonaws.com/commercial/AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE/11111111-2222-3333-4444-555555555555-1?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Expires=1554862678&Signature=OTP5Z0DIutXKbRRT4NwmxQG9jFk%3D"
+          }
+        }
+      },
+      "GetDownloadUrlsResponse": {
+        "title": "GetDownloadUrlsResponse",
+        "type": "object",
+        "properties": {
+          "downloadUrls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadUrlsResponse"
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetIdentityCookieResponse": {
+        "title": "GetIdentityCookieResponse",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "IDENTITY"
+          },
+          "value": {
+            "type": "string",
+            "example": "ABBWLV9u-RgoW6bsimqJX6KlhgxSUnifGvhuNUSEXqNE1MxDhdflaUKakraqXN-XH1bWrMZ92IvVQa0dEeWkrVzDO4Je60bkEnwHRDdJSiS4idSN9ForUuVu4X4CZ2TTzZYZQl8yyqxmiMHA0Le8aa7hKt3H6LGqJtQivjohKFTWGIITTwMdHBm4qDlts4s7ZQlZkBDRpw-hpfc45qic2Gf0PaxvBpfK88M3AtIOYfY2VyQx4zKr4Sh8NpeQcfi1WQ54x026ylJm"
+          },
+          "domain": {
+            "type": "string",
+            "example": "https://demo.sendsafely.com"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetRecipientHistoryResponse": {
+        "title": "GetRecipientHistoryResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientHistoryPackageResponse"
+            }
+          },
+          "message": {
+            "type": "string",
+            "example": "Recipient History response."
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "RecipientHistoryPackageResponse": {
+        "title": "RecipientHistoryPackageResponse",
+        "type": "object",
+        "properties": {
+          "packageId": {
+            "type": "string",
+            "example": "98HN-LO12"
+          },
+          "packageUserName": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "packageUserId": {
+            "type": "string",
+            "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+          },
+          "packageState": {
+            "type": "integer",
+            "example": 0
+          },
+          "packageLife": {
+            "type": "integer",
+            "example": 20
+          },
+          "packageBrowser": {
+            "type": "string",
+            "example": "CHROME"
+          },
+          "packageOS": {
+            "type": "string",
+            "example": "Windows 10"
+          },
+          "packageContainsMessage": {
+            "type": "boolean",
+            "example": false
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/RecipientHistoryRecipientResponse"
+          },
+          "filenames": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": [
+                "example.pdf",
+                "example.txt"
+              ]
+            }
+          }
+        }
+      },
+      "RecipientHistoryRecipientResponse": {
+        "title": "RecipientHistoryPackageResponse",
+        "type": "object",
+        "properties": {
+          "recipientId": {
+            "type": "string",
+            "example": "4d949bbd-2cf9-4c7d-9c3b-e7d957af7da5"
+          },
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "needsApproval": {
+            "type": "boolean",
+            "example": false
+          },
+          "isPackageOwner": {
+            "type": "boolean",
+            "example": false
+          },
+          "checkForPublicKeys": {
+            "type": "boolean",
+            "example": false
+          },
+          "confirmations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetPackageInformationResponse_confirmations"
+            }
+          }
+        }
+      },
+      "GetReceivedPackagesResponse": {
+        "title": "GetReceivedPackagesResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packageId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageParentId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageUserName": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "packageOriginatorUserId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "packageUpdateTimestampStr\"": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 at 14:24",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageState": {
+                  "type": "integer",
+                  "example": "1",
+                  "description": "This provides the numeric representation of package state. What follows is a mapping of packageState and the corresponding packageStateStr value: 1 Expired - Not Picked Up | 2 Expired - Pickup | 3 Active - Pickup Complete | 4 Active - Waiting for Pickup | 5 Active - Pickup In Progress |  6 Complete Expired - Pickup In Progress | 0 - In Progess | -1 Deleted - Pickup Complete | -2 TEMP | -3 Deleted - Not Picked Up | -4 Deleted - Pickup In Progress"
+                },
+                "packageStateStr": {
+                  "type": "string",
+                  "example": "Expired - Not Picked Up",
+                  "description": "String representation of the packageState property. What follows is a listing of possible packageStateStr values: Expired - Not Picked Up | Expired - Pickup | Active - Pickup Complete | Active - Waiting for Pickup | Active - Pickup In Progress | Complete Expired - Pickup In Progress | In Progess | Deleted - Pickup Complete | TEMP | Deleted - Not Picked Up | Deleted - Pickup In Progress"
+                },
+                "packageStateColor\"": {
+                  "type": "string",
+                  "example": "d9534f",
+                  "description": "color in hex code"
+                },
+                "packageUpdateTimestamp": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 2:24:20 PM",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageCode": {
+                  "type": "string",
+                  "example": "Ux04q0rCG04dqzzljsvvuwTfrp9iqH7uEntiK4bKb24"
+                },
+                "packageBrowser": {
+                  "type": "string",
+                  "example": "CHROME"
+                },
+                "packageOS": {
+                  "type": "string",
+                  "example": "Windows 10"
+                },
+                "packageContainsMessage": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "timeZone": {
+                  "type": "string",
+                  "example": "America/New_York"
+                },
+                "filenames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "example.pdf",
+                      "example.txt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "GetArchivedPackagesResponse": {
+        "title": "GetArchivedPackagesResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packageId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageParentId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageUserName": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "packageOriginatorUserId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "packageUpdateTimestampStr\"": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 at 14:24",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageState": {
+                  "type": "integer",
+                  "example": "1",
+                  "description": "This provides the numeric representation of package state. What follows is a mapping of packageState and the corresponding packageStateStr value: 1 Expired - Not Picked Up | 2 Expired - Pickup | 3 Active - Pickup Complete | 4 Active - Waiting for Pickup | 5 Active - Pickup In Progress |  6 Complete Expired - Pickup In Progress | 0 - In Progess | -1 Deleted - Pickup Complete | -2 TEMP | -3 Deleted - Not Picked Up | -4 Deleted - Pickup In Progress"
+                },
+                "packageStateStr": {
+                  "type": "string",
+                  "example": "Expired - Not Picked Up",
+                  "description": "String representation of the packageState property. What follows is a listing of possible packageStateStr values: Expired - Not Picked Up | Expired - Pickup | Active - Pickup Complete | Active - Waiting for Pickup | Active - Pickup In Progress | Complete Expired - Pickup In Progress | In Progess | Deleted - Pickup Complete | TEMP | Deleted - Not Picked Up | Deleted - Pickup In Progress"
+                },
+                "packageStateColor\"": {
+                  "type": "string",
+                  "example": "d9534f",
+                  "description": "color in hex code"
+                },
+                "packageLife": {
+                  "type": "integer",
+                  "example": 20
+                },
+                "packageUpdateTimestamp": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 2:24:20 PM",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageCode": {
+                  "type": "string",
+                  "example": "Ux04q0rCG04dqzzljsvvuwTfrp9iqH7uEntiK4bKb24"
+                },
+                "packageBrowser": {
+                  "type": "string",
+                  "example": "CHROME"
+                },
+                "packageOS": {
+                  "type": "string",
+                  "example": "Windows 10"
+                },
+                "packageContainsMessage": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "timeZone": {
+                  "type": "string",
+                  "example": "America/New_York"
+                },
+                "recipients": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "user1@example.com",
+                      "user2@example.com"
+                    ]
+                  }
+                },
+                "recipientCount": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "filenames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "example.pdf",
+                      "example.txt"
+                    ]
+                  }
+                },
+                "contactGroups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "Group 1",
+                      "Group 2"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "GetWorkspacePackagesResponse": {
+        "title": "GetWorkspacePackagesResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packageId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageUserName": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "packageUserId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "packageState": {
+                  "type": "integer",
+                  "example": "1",
+                  "description": "This provides the numeric representation of package state. What follows is a mapping of packageState and the corresponding packageStateStr value: 1 Expired - Not Picked Up | 2 Expired - Pickup | 3 Active - Pickup Complete | 4 Active - Waiting for Pickup | 5 Active - Pickup In Progress |  6 Complete Expired - Pickup In Progress | 0 - In Progess | -1 Deleted - Pickup Complete | -2 TEMP | -3 Deleted - Not Picked Up | -4 Deleted - Pickup In Progress"
+                },
+                "packageStateStr": {
+                  "type": "string",
+                  "example": "Expired - Not Picked Up",
+                  "description": "String representation of the packageState property. What follows is a listing of possible packageStateStr values: Expired - Not Picked Up | Expired - Pickup | Active - Pickup Complete | Active - Waiting for Pickup | Active - Pickup In Progress | Complete Expired - Pickup In Progress | In Progess | Deleted - Pickup Complete | TEMP | Deleted - Not Picked Up | Deleted - Pickup In Progress"
+                },
+                "packageLife": {
+                  "type": "integer",
+                  "example": 0
+                },
+                "packageUpdateTimestampStr": {
+                  "type": "string",
+                  "example": "09:21 on Dec 08, 2019",
+                  "description": "Last modified TimeStamp"
+                },
+                "packageUpdateTimestamp": {
+                  "type": "string",
+                  "example": "Dec 8, 2019 9:21:32 AM",
+                  "description": "Last Modified TimeStamp"
+                },
+                "packageCode": {
+                  "type": "string",
+                  "example": "Ux04q0rCG04dqzzljsvvuwTfrp9iqH7uEntiK4bKb24"
+                },
+                "packageLabel": {
+                  "type": "string",
+                  "example": "New Workspace",
+                  "description": "workspace name"
+                },
+                "packageContainsMessage": {
+                  "type": "boolean",
+                  "example": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "VerifyCredentialsResponse": {
+        "title": "VerifyCredentialsResponse",
+        "type": "object",
+        "properties": {
+          "requiresApprover": {
+            "type": "boolean",
+            "example": false
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "message": {
+            "type": "string",
+            "example": "user@example.com"
+          }
+        }
+      },
+      "GetEnterpriseInfoResponse": {
+        "title": "GetEnterpriseInfoResponse",
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string",
+            "example": "https://demo.sendsafely.com"
+          },
+          "systemName": {
+            "type": "string",
+            "example": "Secure Data Transfer System, powered by SendSafely"
+          },
+          "allowUndisclosedRecipients": {
+            "type": "boolean",
+            "example": false
+          },
+          "outlookBeta": {
+            "type": "boolean",
+            "example": false
+          },
+          "messageEncryption": {
+            "type": "boolean",
+            "example": false
+          },
+          "linkColor": {
+            "type": "string",
+            "example": "FFFFFF"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetEnterpriseContactGroupsResponse": {
+        "title": "GetEnterpriseContactGroupsResponse",
+        "type": "object",
+        "properties": {
+          "contactGroups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "contactGroupId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "contactGroupName": {
+                  "type": "string",
+                  "example": "Test Group 1"
+                },
+                "contactGroupIsOrganizationGroup": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "userEmail": {
+                        "type": "string",
+                        "example": "user@example"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetUserContactGroupsResponse": {
+        "title": "GetEnterpriseContactGroupsResponse",
+        "type": "object",
+        "properties": {
+          "contactGroups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "contactGroupId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "contactGroupName": {
+                  "type": "string",
+                  "example": "Test Group 1"
+                },
+                "contactGroupIsOrganizationGroup": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "userEmail": {
+                        "type": "string",
+                        "example": "user@example"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "DeleteFileResponse": {
+        "title": "DeleteFileResponse",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "67ccac33-a1c7-4673-a3a6-d920e15dabfe"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "AddContactGroupToPackageResponse": {
+        "title": "AddContactGroupToPackageResponse",
+        "type": "object",
+        "properties": {
+          "contactGroupId": {
+            "type": "string",
+            "example": "67ccac33-a1c7-4673-a3a6-d920e15dabfe"
+          },
+          "contactGroupName": {
+            "type": "string",
+            "example": "Example Group"
+          },
+          "contactGroupUserEmails": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": [
+                "user@example.com",
+                "user2@example.com"
+              ]
+            }
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "MoveWorkspaceFileResponse": {
+        "title": "MoveWorkspaceFileResponse",
+        "type": "object",
+        "properties": {
+          "directoryId": {
+            "type": "string",
+            "example": "67ccac33-a1c7-4673-a3a6-d920e15dabfe"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetPackageMessageResponse": {
+        "title": "GetPackageMessageResponse",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Just a test message"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      },
+      "GetSentPackagesResponse": {
+        "title": "GetSentPackagesResponse",
+        "type": "object",
+        "properties": {
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "packageId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageParentId": {
+                  "type": "string",
+                  "example": "98HN-LO12"
+                },
+                "packageUserName": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "packageUserId": {
+                  "type": "string",
+                  "example": "048ddae1-1f7d-4a97-8557-bdd36387f4b7"
+                },
+                "packageUpdateTimestampStr\"": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 at 14:24",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageState": {
+                  "type": "integer",
+                  "example": "1",
+                  "description": "This provides the numeric representation of package state. What follows is a mapping of packageState and the corresponding packageStateStr value: 1 Expired - Not Picked Up | 2 Expired - Pickup | 3 Active - Pickup Complete | 4 Active - Waiting for Pickup | 5 Active - Pickup In Progress |  6 Complete Expired - Pickup In Progress | 0 - In Progess | -1 Deleted - Pickup Complete | -2 TEMP | -3 Deleted - Not Picked Up | -4 Deleted - Pickup In Progress"
+                },
+                "packageStateStr": {
+                  "type": "string",
+                  "example": "Expired - Not Picked Up",
+                  "description": "String representation of the packageState property. What follows is a listing of possible packageStateStr values: Expired - Not Picked Up | Expired - Pickup | Active - Pickup Complete | Active - Waiting for Pickup | Active - Pickup In Progress | Complete Expired - Pickup In Progress | In Progess | Deleted - Pickup Complete | TEMP | Deleted - Not Picked Up | Deleted - Pickup In Progress"
+                },
+                "packageStateColor\"": {
+                  "type": "string",
+                  "example": "d9534f",
+                  "description": "color in hex code"
+                },
+                "packageLife": {
+                  "type": "integer",
+                  "example": 20
+                },
+                "packageUpdateTimestamp": {
+                  "type": "string",
+                  "example": "Nov 14, 2019 2:24:20 PM",
+                  "description": "Package Creation TimeStamp"
+                },
+                "packageCode": {
+                  "type": "string",
+                  "example": "Ux04q0rCG04dqzzljsvvuwTfrp9iqH7uEntiK4bKb24"
+                },
+                "packageBrowser": {
+                  "type": "string",
+                  "example": "CHROME"
+                },
+                "packageOS": {
+                  "type": "string",
+                  "example": "Windows 10"
+                },
+                "packageContainsMessage": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "recipients": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "user1@example.com",
+                      "user2@example.com"
+                    ]
+                  }
+                },
+                "recipientCount": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "filenames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "example.pdf",
+                      "example.txt"
+                    ]
+                  }
+                },
+                "contactGroups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "example": [
+                      "Group 1",
+                      "Group 2"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "CreateDirectoryResponse": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "string",
+            "example": "Jul 14, 2020 9:38:27 AM"
+          },
+          "createdStr": {
+            "type": "string",
+            "example": "Tue Jul 14 at 09:38 (EDT)"
+          },
+          "name": {
+            "type": "string",
+            "example": "test"
+          },
+          "directoryId": {
+            "type": "string",
+            "example": "a7220901-82b5-4d5f-9039-66f6f19765b4"
+          },
+          "message": {
+            "type": "string",
+            "example": "a7220901-82b5-4d5f-9039-66f6f19765b4"
+          },
+          "response": {
+            "type": "string",
+            "example": "SUCCESS"
+          }
+        }
+      }
+    }
+  }
+}
