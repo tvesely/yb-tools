@@ -121,6 +121,7 @@ func RootInit() *cobra.Command {
 			Name:        "session",
 			Description: "Session management utilities",
 			Commands: []*cobra.Command{
+				session.CustomerCountCmd(ctx),
 				session.ServerLogCmd(ctx),
 			},
 		},
