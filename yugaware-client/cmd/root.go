@@ -153,8 +153,9 @@ func RootInit(fs vfs.Filesystem) *cobra.Command {
 				universe.CreateUniverseCmd(ctx),
 				universe.DeleteUniverseCmd(ctx),
 				universe.HealthCheckCmd(ctx),
-				universe.ListCmd(ctx),
 				universe.GetCmd(ctx),
+				universe.ListCmd(ctx),
+				universe.ScaleCmd(ctx),
 			},
 		},
 	}
